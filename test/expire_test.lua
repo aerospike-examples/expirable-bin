@@ -1,34 +1,35 @@
--- Test of the expire_bin module
+-- =========================================================================
+-- expire_bin.lua tests
+-- =========================================================================
 
-function expire_bin_test(rec)
-	local meth = "expire_bin_test";
-	-- Import the module into this script
-	local expbin = require('expire_bin');
+function test(rec) 
+	-- export the module
+	local eb = require('expire_bin');
 
-	-- Insert bin 
-	expbin.put(rec, "jenny", 123, 100);
-
-	-- Create or update record on db
-	if aerospike:exists(rec) then
-  		aerospike:update(rec)
+	if (eb == nil) then
+		log.info("[EXPIRE BIN TEST] module could not be imported.");
 	else
-  		aerospike:create(rec)
+		log.info("[EXPIRE BIN TEST] module successfuly imported");
 	end
 
-	-- Get bin
-	local return_val = expbin.get(rec, "jenny");
+	if aerospike:exists(rec) then
+		local rl = eb.get(rec, "test1", "test2", "test3");
+		log.info("[EXPIRE BIN TEST] Return List: %s", tostring(rl));
 
-	-- Wait 100 seconds
-	local wait_time = os.time() + 100;
-	while os.time() < wait_time do
-		-- nothing
+		eb.put(rec, "test3", 48, 24, true);
+		eb.puts(rec, map {bin = "test1", val = 12, bin_ttl = 10}, map {bin = "test2", val = 23, bin_ttl = 10});
+		rl = eb.get(rec, "test1", "test2", "test3");
+		log.info("EXPIRE BIN TEST] Return List after put: %s", tostring(rl));
+
+		local expire_time = os.time() + 12;
+		while os.time() < expire_time do
+			-- nothing
+			log.info("waiting");
+		end
+		rl = eb.get(rec, "test1", "test2", "test3");
+		log.info("EXPIRE BIN TEST] Return List after wait: %s", tostring(rl));
+	else
+		log.info("[EXPIRE BIN TEST] record doesn't exist");
+		aerospike:create(rec);
 	end
-
-	-- Get bin again
-	local no_val = expbin.get(rec, "jenny");
-
-	-- change bin_ttl
-	
-
 end
-
