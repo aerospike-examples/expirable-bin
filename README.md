@@ -13,7 +13,7 @@ git clone https://github.com/aerospike/expirable_bin.git
 
 Register the lua file using aql,
 ```aql
--c "register module 'expire_bin.lua'"
+aql -c "register module 'expire_bin.lua'"
 ```
 
 ## Notice to Users
@@ -30,8 +30,8 @@ For usage within UDFs, import the module as follows:
 	local exp_bin = require('expire_bin');
 	exp_bin.get(rec, bin);
 	exp_bin.put(rec, bin, val, bin_ttl, exp_create);
-	exp_bin.puts(rec, {"bin" = bin, "val" = val, "bin_ttl" = bin_ttl});
-	exp_bin.touch(rec, {"bin" = bin, "bin_ttl" = bin_ttl});
+	exp_bin.puts(rec, map {bin = "bin_name", val = 12, bin_ttl = 100});
+	exp_bin.touch(rec, map {bin = "bin_name", bin_ttl = 10});
 	exp_bin.clean(rec, bin);
 ```
 

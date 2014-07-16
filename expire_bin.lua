@@ -44,10 +44,72 @@ local F = true;
 local EXP_ID = "expbin_ttl";
 local EXP_DATA = "data";
 
--- =========================================================================
--- Module Initialization
--- =========================================================================
+-- Type Checking Vars
+local Map = getmetatable(map());
 
+-- ========================================================================= 
+-- Utility functions
+-- ========================================================================= 
+
+-- Check if bin is an expbin
+local function is_expbin(bin)
+	-- TODO: Test functionality
+	if (bin ~= nil 
+		and type(bin) == 'userdata' 
+		and getmetatable(bin) == Map 
+		and bin[EXP_ID] ~= nil) then
+		return true;
+	end
+	return false;
+end
+
+-- Check if bin_ttl is valid for a given rec_ttl
+local function valid_time(bin_ttl, rec_ttl)
+	local meth = "valid_time";
+	if (type(bin_ttl) ~= 'number' or (bin_ttl < 0 and bin_ttl ~= -1)) then
+		GP=F and debug("<%s> bin_ttl is invalid", meth);
+		return false;
+	end
+	if (rec_ttl == 0) then 
+		return true;
+	end
+	if (bin_ttl == -1) then
+		GP=F and debug("<%s> bin_ttl is invalid", meth);
+		return false;
+	end
+	if (bin_ttl > rec_ttl) then
+		GP=F and debug("<%s> bin_ttl is invalid", meth);
+		return false;
+	end
+	return true;
+end
+
+-- Check whether bin_ttl has expired yet
+local function not_expired(bin_ttl)
+	if (bin_ttl ~= nil) then
+		if (bin_ttl == -1 or os.time() <= bin_ttl) then
+			return true;
+		end
+	end
+	return false;
+end
+
+-- Get the bin value from an expbin if it hasn't expired
+local function get_bin(bin_map)
+	local meth = "get_bin";
+	GP=F and debug("[ENTER]<%s> bin: %s", meth, tostring(bin_map));
+	if (is_expbin(bin_map)) then
+		if (not_expired(bin_map[EXP_ID])) then
+			return bin_map[EXP_DATA];
+		else
+			GP=F and debug("[EXIT]<%s> Bin has expired, returning nil", meth);
+			return nil;
+		end
+	else
+		GP=F and debug("<%s> Bin is not an expbin.", meth);
+		return bin_map;
+	end
+end
 
 -- =========================================================================
 -- get(): Get bin from record
@@ -69,32 +131,17 @@ function get(rec, ...)
 	if aerospike:exists(rec) then
 		local return_list = list();
 		-- Iterate through every bin request 
-		for x=1,arg[n] do
-			local bin_map = rec[arg[x]];
-			return_list[x] = get_bin(bin_map);
+		for i,v in ipairs(arg) do
+			local bin_map = rec[v];
+			return_list[i] = get_bin(bin_map);
 		end
-		GP=F and debug("<%s> Returning bin list");
+		GP=F and debug("[EXIT]<%s> Returning bin list", meth);
 		return return_list;
 	else
-		GP=F and debug("<%s> Record does not exist.", meth);
+		GP=F and debug("[EXIT]<%s> Record does not exist.", meth);
 	end
 end
 
-local function get_bin(bin_map)
-	local meth = "get_bin";
-	if (bin_map and bin_map[EXP_ID]) then
-		local bin_ttl = bin_map[EXP_ID];
-		if (bin_ttl == 0xFFFFFFFF or os.time() <= bin_ttl) then
-			return bin_map[EXP_DATA];
-		else
-			GP=F and debug("<%s> Bin has expired, returning nil", meth);
-			return nil;
-		end
-	else
-		GP=F and debug("<%s> Bin is not an expbin.", meth);
-		return bin_map;
-	end
-end
 -- =========================================================================
 -- put(): Store bin to record
 -- =========================================================================
@@ -106,7 +153,7 @@ end
 -- (*) bin: bin name 
 -- (*) val: Value to store in bin
 -- (*) bin_ttl: Bin TTL given in seconds or -1 to disable expiration
--- (*) exp_bin: set to true to create new exp_bins
+-- (*) exp_create: set to true to create new exp_bins
 --
 -- Return:
 -- 1 = error
@@ -115,33 +162,19 @@ end
 function put(rec, bin, val, bin_ttl, exp_create)
 	local meth = "put";
 	GP=F and debug("[BEGIN]<%s> bin:%s value:%s ttl:%s", meth, bin, tostring(val), tostring(bin_ttl));
-	if aerospike:exists(rec) then
-		-- create expbin
-		-- create normal bin
-		-- update/set expbin
-		if (rec[bin] == nil and not exp_create ) then
-			GP=F and debug("%s : bin doesn't exist and expire bin creation disabled")
-			rec[bin] = val;
-			return 0;
-		end
+	if (rec[bin] == nil and not exp_create ) then
+		GP=F and debug("%s : bin doesn't exist and expire bin creation disabled", meth);
+		rec[bin] = val;
+	else
 		local map_bin = rec[bin];
-		if ( map_bin == nil or map_bin[EXP_ID] == nil) then
+		if (not is_expbin(map_bin)) then	
 			map_bin = map();
 		end 
 		-- check that times are correct
-		if (bin_ttl == -1) then
-			if (record.ttl(rec) ~= -1) then
-				GP=F and debug ("%s record ttl and bin ttl conflict", meth);
-				return 1;
-			end
-		end
-		if (record.ttl(rec) ~= -1) then
-			if ( bin_ttl > record.ttl(rec)) then
-				GP=F and debug ("%s record ttl and bin ttl conflict", meth);
-				return 1;
-			end
-		end
-
+		if (not valid_time(bin_ttl, record.ttl(rec))) then
+			GP=F and debug("%s : Record and Bin TTL conflict", meth);
+			return 1;
+		end	
 		if (bin_ttl ~= -1) then
 			map_bin[EXP_ID] = bin_ttl + os.time();
 		else
@@ -149,11 +182,15 @@ function put(rec, bin, val, bin_ttl, exp_create)
 		end
 		map_bin[EXP_DATA] = val;
 		rec[bin] = map_bin;
-		aerospike:update(rec);
-		return 0
 	end
-	GP=F and debug("%s : Record doesn't exist", meth);
-	return 1;
+	if aerospike:exists(rec) then
+		GP=F and debug("%s : Record updated", meth);
+		aerospike:update(rec);
+	else
+		GP=F and debug("%s : Record created", meth);
+		aerospike:create(rec);
+	end
+	return 0
 end
 
 -- =========================================================================
@@ -176,21 +213,21 @@ end
 function puts(rec, ...)
 	local meth = "puts";
 	GP=F and debug("[BEGIN]<%s> bin:%s value:%s ttl:%s", meth);
-	if aerospike:exists(rec) then
-		for x=1,args[n] do
-			local map_bin = args[x];
-			local bin_ttl = map_bin["bin_ttl"];
-			local exp_create = false;
-			if (bin_ttl == nil) then
-				bin_ttl = -1;
-			else 
-				exp_create = true;
-			end
-			return put(rec, map_bin["bin"], map_bin["val"], bin_ttl, exp_create);
+	for i,v in ipairs(arg) do
+		local map_bin = v;
+		local bin_ttl = map_bin[EXP_ID];
+		local exp_create = false;
+		if (bin_ttl == nil) then
+			bin_ttl = -1;
+		else 
+			exp_create = true;
+		end
+		local return_val = put(rec, map_bin["bin"], map_bin["val"], bin_ttl, exp_create);
+		if (return_val == 1) then
+			return 1;
 		end
 	end
-	GP=F and debug("%s : Record doesn't exist", meth);
-	return 1;
+	return 0;
 end
 
 -- =========================================================================
@@ -213,25 +250,23 @@ function touch(rec, ...)
 	local meth = "touch";
 	GP=F and debug("[BEGIN]<%s> bin:%s bin_ttl:%s", meth, bin, tostring(bin_ttl));
 	if aerospike:exists(rec) then
-		for x=1,args[n] do
-			local bin_map = args[x];
+		for i,v in ipairs(arg) do
+			local bin_map = v;
 			local bin_name = bin_map["bin"]
-			if (record.ttl(rec) < bin_map["bin_ttl"]) then -- TODO: CHECK THIS
+			if (not valid_time(v["bin_ttl"], record.ttl(rec))) then 
 				GP=F and debug("%s : Record TTL is less than Bin TTL for bin %s", meth, bin_name);
+				return 1;
 			else
 				local rec_map = rec[bin_name];
-				if (rec_map ~= nil) then
-					if (rec_map[EXP_ID] == nil) then
-						GP=F and debug("%s : Bin %s is not an expirable bin", meth, bin_name);
+				if (is_expbin(rec_map)) then
+					if (bin_map["bin_ttl"] ~= -1) then
+						rec_map[EXP_ID] = bin_map["bin_ttl"] + os.time();
 					else
-						if (bin_map["bin_ttl"] ~= -1) then
-							rec_map[EXP_ID] = bin_map["bin_ttl"] + os.time();
-						else
-							rec_map[EXP_ID] = -1;
-						end
+						rec_map[EXP_ID] = -1;
 					end
 				else
-					GP=F and debug("expire_bin.%s : Bin %s is empty", meth, bin_name);
+					GP=F and debug("expire_bin.%s : Bin %s is not a valid expbin", meth, bin_name);
+					return 1;
 				end
 			end	
 		end
@@ -262,7 +297,7 @@ end
 --
 -- Params:
 -- (*) rec: record to retrieve bin from
--- (*) bin: bin to clean 
+-- (*) bin: bins to clean 
 --
 -- Return:
 -- 0 = success
@@ -272,17 +307,14 @@ function clean(rec, ...)
 	local meth = "clean";
 	GP=F and debug("[BEGIN]<%s> bin:%s ", meth, bin);
 	if aerospike:exists(rec) then
-		for x=1,args[n] do
-			local bin = args[x];
+		for i,v in ipairs(arg) do
+			local bin = v;
 			local temp_bin = rec[bin];
-			if (temp_bin and temp_bin[EXP_ID]) then
-				if (temp_bin[EXP_ID] < os.time()) then -- TODO: CHECK THIS
-					rec[bin] = nil;
-					GP=F and debug("expire_bin.%s : Bin %s expired, erasing bin", meth, bin);
-				end
+			if (is_expbin(temp_bin) and not not_expired(temp_bin[EXP_ID])) then
+				rec[bin] = nil;
+				GP=F and debug("expire_bin.%s : Bin %s expired, erasing bin", meth, bin);
+			else
 				GP=F and debug("expire_bin.%s : Bin %s hasn't expired, skipping record", meth, bin);
-			else	
-				GP=F and debug("expire_bin.%s : Bin doesn't exist", meth);
 			end
 		end
 		aerospike:update(rec);
@@ -302,4 +334,9 @@ return {
 	puts  = puts,
 	touch = touch,
 	clean = clean
+	-- uncomment to test
+	,is_expbin = is_expbin,
+	valid_time = valid_time,
+	not_expired = not_expired,
+	get_bin = get_bin
 }
