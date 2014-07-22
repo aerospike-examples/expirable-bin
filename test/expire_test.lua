@@ -6,18 +6,7 @@ local eb = require('expire_bin');
 local EXP_ID = "expbin_ttl";
 local EXP_DATA = "data";
 
-function test(rec) 
-	-- export the module
-	info("[BEGIN] EXPIREBIN TEST");
-	info("[EXPIREBIN TEST] is_expbin_test %s", tostring(is_expbin_test(rec)));
-	info("[EXPIREBIN TEST] valid_time_test %s", tostring(valid_time_test(rec)));
-	info("[EXPIREBIN TEST] not_expire_test %s", tostring(not_expire_test(rec)));
-	info("[EXPIREBIN TEST] get_bin_test %s", tostring(get_bin_test(rec)));
-	info("[EXPIREBIN TEST] get_test %s", tostring(get_test(rec)));
-	info("[EXIT] EXPIREBIN TEST");
-end
-
-function is_expbin_test(rec)
+local function is_expbin_test(rec)
 	local meth = "is_expbin_test";
 	local badBin = list();
 	local goodBin = map { expbin_ttl = 20, data = 12};
@@ -32,7 +21,7 @@ function is_expbin_test(rec)
 	return true;
 end
 
-function valid_time_test(rec)
+local function valid_time_test(rec)
 	local meth = "valid_time_test";
 	local pass = true;
 	if (eb.valid_time(-1, 0) == false) then
@@ -54,7 +43,7 @@ function valid_time_test(rec)
 	return pass;
 end
 
-function not_expired_test(rec)
+local function not_expired_test(rec)
 	local meth = "not_expired_test";
 	local pass = true;
 	if (eb.not_expired(os.time() - 10) == true) then
@@ -68,7 +57,7 @@ function not_expired_test(rec)
 	return pass;
 end
 
-function get_bin_test(rec)
+local function get_bin_test(rec)
 	local meth = "get_bin_test";
 	local pass = true;
 	local goodBin = map { expbin_ttl = os.time() + 100, data = 12 };
@@ -89,7 +78,7 @@ function get_bin_test(rec)
 	return pass;
 end
 
-function put_test(rec)
+local function put_test(rec)
 	local meth = "put_test";
 	if (eb.put(rec, "TEST", 123, 100, false) == 1) then
 		info("[EXPIREBIN TEST] <%s> put failed", meth);
@@ -99,8 +88,21 @@ function put_test(rec)
 	return true;
 end
 
-function get_test(rec)
+local function get_test(rec)
 	local meth = "get_test";
 	-- to be implemented
+	return nil;
+end
+
+function test(rec) 
+	-- export the module
+	info("[BEGIN] EXPIREBIN TEST");
+	info("[EXPIREBIN TEST] is_expbin_test %s", tostring(is_expbin_test(rec)));
+	info("[EXPIREBIN TEST] valid_time_test %s", tostring(valid_time_test(rec)));
+	info("[EXPIREBIN TEST] not_expire_test %s", tostring(not_expired_test(rec)));
+	info("[EXPIREBIN TEST] get_bin_test %s", tostring(get_bin_test(rec)));
+	info("[EXPIREBIN TEST] get_test %s", tostring(get_test(rec)));
+	info("[EXIT] EXPIREBIN TEST");
+	return true;
 end
 

@@ -27,10 +27,10 @@
 -- USAGE
 -- =========================================================================
 --
--- Call the function through a client.
--- AerospikeClient as = new AerospikeClient(...);
--- as.execute(policy, key, "expire_bin", "get", bin);
--- as.execute(policy, key, "expire_bin", "put", bin, val, bin_ttl);
+-- Call the function through a client (See src/c and src/java) OR
+-- Import module in lua:
+-- local expbin = require("expire_bin");
+-- eb.get(rec, bin);
 
 -- =========================================================================
 -- Debug Flags
@@ -170,9 +170,17 @@ function put(rec, bin, val, bin_ttl, exp_create)
 		if (not is_expbin(map_bin)) then	
 			map_bin = map();
 		end 
-		-- check that times are correct
+		-- Create rec on server to get default server ttl
+		local temp_rec = false;
+		if not aerospike:exists(rec) then
+			aerospike:create(rec);
+			temp_rec = true;
+		end
 		if (not valid_time(bin_ttl, record.ttl(rec))) then
-			GP=F and debug("%s : Record and Bin TTL conflict", meth);
+			GP=F and debug("%s : Record and Bin TTL conflict bin %s, rec %s", meth, tostring(bin_ttl), tostring(record.ttl(rec)));
+			if (temp_rec) then
+				aerospike:remove(rec);
+			end
 			return 1;
 		end	
 		if (bin_ttl ~= -1) then
@@ -185,7 +193,8 @@ function put(rec, bin, val, bin_ttl, exp_create)
 	end
 	if aerospike:exists(rec) then
 		GP=F and debug("%s : Record updated", meth);
-		aerospike:update(rec);
+		local rc = aerospike:update(rec);
+		GP=F and debug("JENE %s", tostring(rc));
 	else
 		GP=F and debug("%s : Record created", meth);
 		aerospike:create(rec);
@@ -212,7 +221,7 @@ end
 -- =========================================================================
 function puts(rec, ...)
 	local meth = "puts";
-	GP=F and debug("[BEGIN]<%s> bin:%s value:%s ttl:%s", meth);
+	GP=F and debug("[BEGIN]<%s>", meth);
 	for i,v in ipairs(arg) do
 		local map_bin = v;
 		local bin_ttl = map_bin[EXP_ID];
@@ -248,7 +257,7 @@ end
 -- =========================================================================
 function touch(rec, ...)
 	local meth = "touch";
-	GP=F and debug("[BEGIN]<%s> bin:%s bin_ttl:%s", meth, bin, tostring(bin_ttl));
+	GP=F and debug("[BEGIN]<%s>", meth);
 	if aerospike:exists(rec) then
 		for i,v in ipairs(arg) do
 			local bin_map = v;
@@ -281,20 +290,6 @@ end
 -- clean_bin(): Empty expired bins
 -- =========================================================================
 --
--- USAGE:
--- try {
--- 	final AerospikeClient client = new AerospikeClient(host, port);
-
--- 	ScanPolicy scanPolicy = new ScanPolicy();
--- 	client.scanAll(scanPolicy, namespace, set, new ScanCallback() {
--- 		public void scanCallback(Key key, Record record) throws AerospikeException {
--- 			client.execute(new WritePolicy(), key, "expire_bin", "clean_bin", record.bins.keySet());
--- 		}
--- 	}, new String[] {});
--- } catch (AerospikeException e) {
-	
--- }
---
 -- Params:
 -- (*) rec: record to retrieve bin from
 -- (*) bin: bins to clean 
@@ -305,7 +300,7 @@ end
 -- =========================================================================
 function clean(rec, ...)
 	local meth = "clean";
-	GP=F and debug("[BEGIN]<%s> bin:%s ", meth, bin);
+	GP=F and debug("[BEGIN]<%s> ", meth);
 	if aerospike:exists(rec) then
 		for i,v in ipairs(arg) do
 			local bin = v;
@@ -326,6 +321,34 @@ function clean(rec, ...)
 end
 
 -- =========================================================================
+-- ttl(): Get bin ttl
+-- =========================================================================
+--
+-- Params:
+-- (*) rec: record to retrieve bin from
+-- (*) bin: bin to check
+--
+-- Return:
+-- time to live in seconds = success
+-- nil = error
+-- =========================================================================
+function ttl(rec, bin)
+	local meth = "ttl";
+	GP=F and debug("[BEGIN]<%s> bin:%s ", meth, bin);
+	if aerospike:exists(rec) then
+		local binMap = rec[bin];
+		if (is_expbin(binMap)) then
+			return binMap[EXP_ID];
+		else
+			GP=F and debug("[ERROR]<%s> Bin isn't an expire bin", meth);
+		end
+	else
+		GP=F and debug("[ERROR]<%s> Record doesn't exist", meth);
+		return nil;
+	end
+end
+
+-- =========================================================================
 -- Module export
 -- =========================================================================
 return {
@@ -333,7 +356,8 @@ return {
 	put   = put,
 	puts  = puts,
 	touch = touch,
-	clean = clean
+	clean = clean,
+	ttl = ttl
 	-- uncomment to test
 	,is_expbin = is_expbin,
 	valid_time = valid_time,

@@ -1,4 +1,5 @@
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.AerospikeException;
@@ -92,12 +93,71 @@ public class ExpireBin {
 		}
 	}
 	
+	public Integer ttl(Key key, String bin) {
+		try {
+			return (Integer)(client.execute(policy, key, MODULE_NAME, "ttl", Value.get(bin)));
+		} catch (AerospikeException e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
 	/**
 	 * @param args
 	 */
 	public static void main(String[] args) {
-		// TODO Auto-generated method stub
+		AerospikeClient testClient = null;
+		System.out.println("This is a demo of the expirable bin module for Java");
+		try {
+			System.out.println("Connecting to server...");
+			testClient = new AerospikeClient("127.0.0.1", 3000);
+			System.out.println("Connected!");
+		} catch (AerospikeException e) {
+			e.printStackTrace();
+			System.exit(1);
+		}
+		ExpireBin eb = new ExpireBin(testClient, new WritePolicy());
+		System.out.println("Creating expire bins...");
+		Key testKey1 = null, testKey2 = null, testKey3 = null;
+		try {
+			testKey1 = new Key("test", "expireBin", "eb1");
+			testKey2 = new Key("test", "expireBin", "eb2");
+			testKey3 = new Key("test", "expireBin", "eb3");
+		} catch (AerospikeException e) {
+			e.printStackTrace();
+			System.exit(1);
+		}
+		System.out.println(((Integer)(eb.put(testKey1, "TestBin", Value.get("Hello World"), -1, 0)) == 0 ? "TestBin 1 inserted." : "TestBin 1 not inserted" ));
+		System.out.println((Integer)eb.put(testKey2, "TestBin", Value.get("I don't expire"), -1, 0) == 0 ? "TestBin 2 inserted" : "TestBin 2 not inserted");
+		System.out.println((Integer)eb.put(testKey3, "TestBin", Value.get("I will expire soon"), 5, 0) == 0 ? "TestBin 3 inserted" : "TestBin 3 not inserted");
+		System.out.println(((Integer)(eb.put(testKey1, "foo", Value.get("Bye World"), -1, 0)) == 0 ? "foo 1 inserted." : "foo 1 not inserted" ));
 
+		System.out.println("Getting expire bins...");
+		
+		System.out.println("TestBin 1: " + eb.get(testKey1, "TestBin").toString());
+		System.out.println("TestBin 2: " + eb.get(testKey2, "TestBin").toString());
+		System.out.println("TestBin 3: " + eb.get(testKey3, "TestBin").toString());
+		
+		System.out.println("Current time is: " + (System.currentTimeMillis() / 1000) + "\nGetting bin TTLs...");
+		System.out.println("TestBin 1 TTL: " + eb.ttl(testKey1, "TestBin"));
+		System.out.println("TestBin 2 TTL: " + eb.ttl(testKey2, "TestBin"));
+		System.out.println("TestBin 3 TTL: " + eb.ttl(testKey3, "TestBin"));
+		
+		System.out.println("Waiting for TestBin 3 to expire...");
+		
+		try {
+			TimeUnit.SECONDS.sleep(10);
+		} catch(InterruptedException ex) {
+			Thread.currentThread().interrupt();
+		}
+		
+		System.out.println("Getting expire bins again...");
+		
+		System.out.println("TestBin 1: " + eb.get(testKey1, "TestBin").toString());
+		System.out.println("TestBin 2: " + eb.get(testKey2, "TestBin").toString());
+		System.out.println("TestBin 3: " + eb.get(testKey3, "TestBin").toString());
+		System.out.println("foo 3: " + eb.get(testKey1, "foo").toString());
+		
+		
 	}
 
 }
