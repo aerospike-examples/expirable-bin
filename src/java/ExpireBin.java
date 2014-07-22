@@ -12,8 +12,15 @@ import com.aerospike.client.policy.WritePolicy;
 
 public class ExpireBin {
 	static final String MODULE_NAME = "expire_bin";
+	public AerospikeClient client;
+	public WritePolicy policy;
 	
-	public static Object get(AerospikeClient client, WritePolicy policy, Key key, String ... bins) {
+	public ExpireBin(AerospikeClient client, WritePolicy policy) {
+		this.policy = policy;
+		this.client = client;
+	}
+	
+	public Object get(Key key, String ... bins) {
 		Value[] valueBins = new Value[bins.length];
 		int count = 0;
 		for (String bin : bins) {
@@ -28,7 +35,7 @@ public class ExpireBin {
 		return null;
 	}
 	
-	public static Object put(AerospikeClient client, WritePolicy policy, Key key, String binName, Value val, int binTTL, int expCreate) {
+	public Object put(Key key, String binName, Value val, int binTTL, int expCreate) {
 		try {
 			return client.execute(policy, key, MODULE_NAME, "put", Value.get(binName), val, Value.get(binTTL), Value.get(expCreate));
 		} catch (AerospikeException e) {
@@ -37,7 +44,7 @@ public class ExpireBin {
 		return null;
 	}
 	
-	public static Object puts(AerospikeClient client, WritePolicy policy, Key key, Map ... mapBins) {
+	public Object puts(Key key, Map ... mapBins) {
 		Value[] valueMaps = new Value[mapBins.length];
 		int count = 0;
 		for (Map map : mapBins) {
@@ -52,7 +59,7 @@ public class ExpireBin {
 		return null;
 	}
 	
-	public static Object touch(AerospikeClient client, WritePolicy policy, Key key, Map ... mapBins) {
+	public Object touch(Key key, Map ... mapBins) {
 		Value[] valueMaps = new Value[mapBins.length];
 		int count = 0;
 		for (Map map : mapBins) {
@@ -67,7 +74,7 @@ public class ExpireBin {
 		return null;
 	}
 	
-	public static void clean(final AerospikeClient client, WritePolicy policy, ScanPolicy scan, String namespace, String set, String ... bins) {
+	public void clean(ScanPolicy scan, String namespace, String set, String ... bins) {
 		final Value[] valueBins = new Value[bins.length];
 		int count = 0;
 		for (String bin : bins) {
