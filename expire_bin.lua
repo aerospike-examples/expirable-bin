@@ -193,8 +193,7 @@ function put(rec, bin, val, bin_ttl, exp_create)
 	end
 	if aerospike:exists(rec) then
 		GP=F and debug("%s : Record updated", meth);
-		local rc = aerospike:update(rec);
-		GP=F and debug("JENE %s", tostring(rc));
+		aerospike:update(rec);
 	else
 		GP=F and debug("%s : Record created", meth);
 		aerospike:create(rec);

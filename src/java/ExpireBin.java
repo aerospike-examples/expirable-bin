@@ -85,7 +85,7 @@ public class ExpireBin {
 		try {
 			client.scanAll(scan, namespace, set, new ScanCallback() {
 				public void scanCallback(Key key, Record record) throws AerospikeException {
-					client.execute(new WritePolicy(), key, "MODULE_NAME", "clean_bin", valueBins);
+					client.execute(new WritePolicy(), key, MODULE_NAME, "clean", valueBins);
 				}
 			}, new String[] {});
 		} catch (AerospikeException e) {
@@ -129,7 +129,6 @@ public class ExpireBin {
 		System.out.println(((Integer)(eb.put(testKey1, "TestBin", Value.get("Hello World"), -1, 0)) == 0 ? "TestBin 1 inserted." : "TestBin 1 not inserted" ));
 		System.out.println((Integer)eb.put(testKey2, "TestBin", Value.get("I don't expire"), -1, 0) == 0 ? "TestBin 2 inserted" : "TestBin 2 not inserted");
 		System.out.println((Integer)eb.put(testKey3, "TestBin", Value.get("I will expire soon"), 5, 0) == 0 ? "TestBin 3 inserted" : "TestBin 3 not inserted");
-		System.out.println(((Integer)(eb.put(testKey1, "foo", Value.get("Bye World"), -1, 0)) == 0 ? "foo 1 inserted." : "foo 1 not inserted" ));
 
 		System.out.println("Getting expire bins...");
 		
@@ -141,6 +140,7 @@ public class ExpireBin {
 		System.out.println("TestBin 1 TTL: " + eb.ttl(testKey1, "TestBin"));
 		System.out.println("TestBin 2 TTL: " + eb.ttl(testKey2, "TestBin"));
 		System.out.println("TestBin 3 TTL: " + eb.ttl(testKey3, "TestBin"));
+
 		
 		System.out.println("Waiting for TestBin 3 to expire...");
 		
@@ -155,7 +155,10 @@ public class ExpireBin {
 		System.out.println("TestBin 1: " + eb.get(testKey1, "TestBin").toString());
 		System.out.println("TestBin 2: " + eb.get(testKey2, "TestBin").toString());
 		System.out.println("TestBin 3: " + eb.get(testKey3, "TestBin").toString());
-		System.out.println("foo 3: " + eb.get(testKey1, "foo").toString());
+		
+		System.out.println("Cleaning bins...");
+		eb.clean(new ScanPolicy(), "test", "expireBin", "TestBin");
+		
 		
 		
 	}
