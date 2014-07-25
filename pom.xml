@@ -2,70 +2,38 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>ExpireBin</groupId>
   <artifactId>ExpireBin</artifactId>
-  <version>0.0.1</version>
+  <version>1.0</version>
+  <packaging>jar</packaging>
   <build>
     <sourceDirectory>src/java</sourceDirectory>
     <plugins>
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.0</version>
-        <executions>
-          <execution>
-            <id>default-testCompile</id>
-            <phase>test-compile</phase>
-            <goals>
-              <goal>testCompile</goal>
-            </goals>
-            <configuration>
-              <archive>
-                <manifest>
-                  <mainClass>src.java.ExpireBin</mainClass>
-                </manifest>
-              </archive>
-              <source />
-              <target />
-            </configuration>
-          </execution>
-          <execution>
-            <id>default-compile</id>
-            <phase>compile</phase>
-            <goals>
-              <goal>compile</goal>
-            </goals>
-            <configuration>
-              <archive>
-                <manifest>
-                  <mainClass>src.java.ExpireBin</mainClass>
-                </manifest>
-              </archive>
-              <source />
-              <target />
-            </configuration>
-          </execution>
-        </executions>
-        <configuration>
-          <archive>
-            <manifest>
-              <mainClass>src.java.ExpireBin</mainClass>
-            </manifest>
-          </archive>
-          <source />
-          <target />
-        </configuration>
       </plugin>
       <plugin>
-        <artifactId>maven-clean-plugin</artifactId>
-        <version>2.4.1</version>
-        <executions>
-          <execution>
-            <id>default-clean</id>
-            <phase>clean</phase>
-            <goals>
-              <goal>clean</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
+  <artifactId>maven-assembly-plugin</artifactId>
+  <configuration>
+    <archive>
+      <manifest>
+      <addClasspath>true</addClasspath>
+        <mainClass>ExpireBin</mainClass>
+      </manifest>
+    </archive>
+    <descriptorRefs>
+      <descriptorRef>jar-with-dependencies</descriptorRef>
+    </descriptorRefs>
+  </configuration>
+  <executions>
+    <execution>
+      <id>make-assembly</id> <!-- this is used for inheritance merges -->
+      <phase>package</phase> <!-- bind to the packaging phase -->
+      <goals>
+        <goal>single</goal>
+      </goals>
+    </execution>
+  </executions>
+</plugin>
     </plugins>
   </build>
   <dependencies>
@@ -73,6 +41,7 @@
   		<groupId>com.aerospike</groupId>
   		<artifactId>aerospike-client</artifactId>
   		<version>3.0.25</version>
+  		<scope>compile</scope>
   	</dependency>
   </dependencies>
 </project>

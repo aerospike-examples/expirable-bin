@@ -26,6 +26,14 @@ This module can be used from client calls or within other UDFs. For examples of 
 calls, see the C and Java examples under ```src/c``` and ```src/java```. Please ensure
 that the expire_bin.lua file is registered to the server before running the examples.
 
+To run the java example,
+```
+	mvn install
+	java -jar target/ExpireBin-1.0-jar-with-dependencies.jar
+```
+The java example class can also be used as a library. It provides method wrappers for
+the underlying UDF apply calls. 
+
 For usage within UDFs, import the module as follows:
 ```
 	local exp_bin = require('expire_bin');
