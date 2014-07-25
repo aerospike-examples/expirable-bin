@@ -23,7 +23,8 @@ will not be supported and may interfere with the functionality of this module.
 
 ## Usage
 This module can be used from client calls or within other UDFs. For examples of client
-calls, see the C and Java examples under ```src/c``` and ```src/java```.
+calls, see the C and Java examples under ```src/c``` and ```src/java```. Please ensure
+that the expire_bin.lua file is registered to the server before running the examples.
 
 For usage within UDFs, import the module as follows:
 ```
@@ -34,4 +35,8 @@ For usage within UDFs, import the module as follows:
 	exp_bin.touch(rec, map {bin = "bin_name", bin_ttl = 10});
 	exp_bin.clean(rec, bin);
 ```
-
+## Architecture
+Expire bins are map objects encapsulating the bin data and bin TTL. The bin operations for
+expire bin perform retrieval and sending operations while checking the stored metadata 
+to perform the expiration functionality. Because the bins are essentially storing maps,
+there is no support of secondary index with expire bins yet. 

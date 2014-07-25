@@ -72,26 +72,41 @@ main(int argc, char* argv[])
 	aerospike as;
 	as_config config;
 	as_error err;
+	as_status rc;
 	as_config_init(&config);
 	as_config_add_host(&config, "127.0.0.1", 3000);
 	aerospike_init(&as, &config);
 
+	printf("Connecting to Aerospike server...\n");
 	if ( aerospike_connect(&as, &err) != AEROSPIKE_OK ) {
 		fprintf(stderr, "error(%d) %s at [%s:%d]", err.code, err.message, err.file, err.line);
 	}
-	
+	printf("Connected!\n");
+
 	as_policy_apply policy;
 	as_policy_apply_init(&policy);
 	
-	as_key key;
-	as_key_init(&key, "test", "test", "test");
-	as_val* result = NULL;
-	as_arraylist arglist;
-	as_list * l = (as_list *) as_arraylist_inita(&arglist, 1);
+	as_key key1, key2, key3;
 	
-	as_expbin_put(&as, &err, &policy, &key, l, &result); 
+	printf("Creating expire bins...");
+	
+	if (as_key_init_str(&key1, "test", "expireBin", "eb1") == NULL ||
+	    as_key_init_str(&key2, "test", "expireBin", "eb2") == NULL ||
+		as_key_init_str(&key3, "test", "expireBin", "eb3") == NULL) {
+		printf("Keys were not initiated.\n");
+		exit(1);
+	}
+	as_arraylist arglist;
+	as_list * l = (as_list *) as_arraylist_inita(&arglist, 4);
 
-	as_arraylist_destroy(&arglist);
+	as_val result;
+	rc = as_expbin_put(as, err, key1, arglist, &result);
+	if (rc != AEROSPIKE_OK) {
+		exit(1);
+	}
+	
 	aerospike_close(&as, &err);
 	aerospike_destroy(&as);
+
+	return 0;
 }

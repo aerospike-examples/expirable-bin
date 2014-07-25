@@ -2,17 +2,69 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>ExpireBin</groupId>
   <artifactId>ExpireBin</artifactId>
-  <version>0.0.1-SNAPSHOT</version>
+  <version>0.0.1</version>
   <build>
     <sourceDirectory>src/java</sourceDirectory>
     <plugins>
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.0</version>
+        <executions>
+          <execution>
+            <id>default-testCompile</id>
+            <phase>test-compile</phase>
+            <goals>
+              <goal>testCompile</goal>
+            </goals>
+            <configuration>
+              <archive>
+                <manifest>
+                  <mainClass>src.java.ExpireBin</mainClass>
+                </manifest>
+              </archive>
+              <source />
+              <target />
+            </configuration>
+          </execution>
+          <execution>
+            <id>default-compile</id>
+            <phase>compile</phase>
+            <goals>
+              <goal>compile</goal>
+            </goals>
+            <configuration>
+              <archive>
+                <manifest>
+                  <mainClass>src.java.ExpireBin</mainClass>
+                </manifest>
+              </archive>
+              <source />
+              <target />
+            </configuration>
+          </execution>
+        </executions>
         <configuration>
-          <source/>
-          <target/>
+          <archive>
+            <manifest>
+              <mainClass>src.java.ExpireBin</mainClass>
+            </manifest>
+          </archive>
+          <source />
+          <target />
         </configuration>
+      </plugin>
+      <plugin>
+        <artifactId>maven-clean-plugin</artifactId>
+        <version>2.4.1</version>
+        <executions>
+          <execution>
+            <id>default-clean</id>
+            <phase>clean</phase>
+            <goals>
+              <goal>clean</goal>
+            </goals>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>
