@@ -112,6 +112,28 @@ as_expbin_touch(aerospike* as, as_error* err, const as_policy_apply* policy, con
 	return rc;
 }
 
+/*
+ * Get the time bin will expire in seconds.
+ *
+ * \param as The aerospike instance to use for this operation.
+ * \param err The as_error to be populated if an error occurs.
+ * \param policy The policy to use for this operation. If NULL, then the default policy will be used. 
+ * \param key The key of the record
+ * \param arglist the bin name to check
+ * \param result bin time to expire in seconds
+ * 
+ * \return AEROSPIKE_OK if successful, otherwise an error
+ */
+as_status 
+as_expbin_ttl(aerospike* as, as_error* err, const as_policy_apply* policy, const as_key* key, as_list* arglist, as_val** result) 
+{
+	as_status rc = aerospike_key_apply(as, err, policy, key, UDF_MODULE, "ttl", arglist, result);
+	if (rc != AEROSPIKE_OK) {
+		LOG("as_expbin_ttl() returned %d - %s", err->code, err->message);	
+	}
+	return rc;
+}
+
 /* 
  * Clear out the expired bins on a scan of the database
  * 
