@@ -122,9 +122,10 @@ class ExpireBin:
 		Raises:
 			Exception: Exception with details of server error.
 		"""
-		def callback((key, meta, record)):
-			self.client.apply(key, MODULE_NAME, "does_not_exist", list(bins), self.policy)
-		scan.foreach(callback)
+		raise Exception("Scan UDF not yet implemented in python client")
+		#def callback((key, meta, record)):
+		#	self.client.apply(key, MODULE_NAME, "does_not_exist", list(bins), self.policy)
+		#scan.foreach(callback)
 
 	def ttl(self, key, bin):
 		"""Get the time bin will expire in seconds.
@@ -177,13 +178,11 @@ def main():
 	print "TestBin 2: {0}".format(eb.get(key2, "TestBin"))
 	print "TestBin 3: {0}".format(eb.get(key3, "TestBin"))
 
-	print "Cleaning bins..."
+	# scan udf not yet implemented in python client
+	#print "Cleaning bins..."
 
-	#eb.clean_rec(key1, "TestBin")
-	#eb.clean_rec(key2, "TestBin")
-	#eb.clean_rec(key3, "TestBin")
-	testScan = testClient.scan("test", "expireBin")
-	eb.clean(testScan, "TestBin")
+	#testScan = testClient.scan("test", "expireBin")
+	#eb.clean(testScan, "TestBin")
 
 if __name__ == "__main__":
 	main()
