@@ -51,10 +51,7 @@ class ExpireBin:
 		Raises:
 			Exception: Exception with details of server error.
 		"""
-		try:
-			return self.client.apply(key, MODULE_NAME, GET_OP, list(bins), self.policy)
-		except Exception as e:
-			raise
+		return self.client.apply(key, MODULE_NAME, GET_OP, list(bins), self.policy)
 
 	def put(self, key, bin, val, bin_ttl, create):
 		"""Create or update expire bins. If the create flag is set to true,
@@ -71,15 +68,15 @@ class ExpireBin:
 
 		Returns:
 			int: 0 if success, 1 otherwise
+
+		Raises:
+			Exception: Exception with details of server error.
 		"""
 		if create:
 			create = 0
 		else:
 			create = 1
-		try:
-			return self.client.apply(key, MODULE_NAME, PUT_OP, [bin, val, bin_ttl, create], self.policy)
-		except Exception as e:
-			raise
+		return self.client.apply(key, MODULE_NAME, PUT_OP, [bin, val, bin_ttl, create], self.policy)
 
 	def puts(self, key, *binMaps):
 		"""Batch create or update expire bins for a given key. Use the dict
@@ -93,11 +90,11 @@ class ExpireBin:
 		Returns:
 			int: 0 if all ops succeeded, 1 if error occurred
 
+		Raises:
+			Exception: Exception with details of server error.
+
 		"""
-		try:
-			return self.client.apply(key, MODULE_NAME, BATCH_PUT_OP, list(binMaps), self.policy)
-		except Exception as e:
-			raise
+		return self.client.apply(key, MODULE_NAME, BATCH_PUT_OP, list(binMaps), self.policy)
 
 	def touch(self, key, *mapBins):
 		"""Batch update the bin TTLs. Us this method to change or reset the bin TTL of
@@ -109,11 +106,11 @@ class ExpireBin:
 
 		Returns:
 			int: 0 on success of ALL touch operations, 1 if a failure occurs
+
+		Raises:
+			Exception: Exception with details of server error.
 		"""
-		try:
-			return self.client.apply(key, MODULE_NAME, TOUCH_OP, list(mapBins), self.policy)
-		except Exception as e:
-			raise
+		return self.client.apply(key, MODULE_NAME, TOUCH_OP, list(mapBins), self.policy)
 
 	def clean(self, scan, *bins):
 		"""Clear out the expired bins on a scan of the database
@@ -121,16 +118,13 @@ class ExpireBin:
 		Args:
 			scan -- Scan object to run bin clean on
 			*bins -- bin names to clean out
-		"""
-		print "currently unimplemented"
-		##scan.select(bins)
-		##def clean_call(rec):
-		##	try:
-		##		self.client.apply(rec[0], MODULE_NAME, CLEAN_OP, list(bins), self.policy)
-		##	except Exception as e:
-		##		raise
 
-		##scan.foreach(clean_call)
+		Raises:
+			Exception: Exception with details of server error.
+		"""
+		def callback((key, meta, record)):
+			self.client.apply(key, MODULE_NAME, "does_not_exist", list(bins), self.policy)
+		scan.foreach(callback)
 
 	def ttl(self, key, bin):
 		"""Get the time bin will expire in seconds.
@@ -141,12 +135,11 @@ class ExpireBin:
 
 		Returns:
 			int: Time to expire in seconds
-		"""
-		try:
-			return self.client.apply(key, MODULE_NAME, TTL_OP, [bin], self.policy)
-		except Exception as e:
-			raise
 
+		Raises:
+			Exception: Exception with details of server error.
+		"""
+		return self.client.apply(key, MODULE_NAME, TTL_OP, [bin], self.policy)
 
 def main():
 	config = { 'hosts' : [ ('127.0.0.1', 3000) ]}
@@ -186,6 +179,9 @@ def main():
 
 	print "Cleaning bins..."
 
+	#eb.clean_rec(key1, "TestBin")
+	#eb.clean_rec(key2, "TestBin")
+	#eb.clean_rec(key3, "TestBin")
 	testScan = testClient.scan("test", "expireBin")
 	eb.clean(testScan, "TestBin")
 

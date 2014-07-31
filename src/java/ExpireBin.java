@@ -26,8 +26,11 @@ import com.aerospike.client.Log;
 import com.aerospike.client.Record;
 import com.aerospike.client.ScanCallback;
 import com.aerospike.client.Value;
+import com.aerospike.client.policy.Policy;
 import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.policy.WritePolicy;
+import com.aerospike.client.query.Statement;
+import com.aerospike.client.task.ExecuteTask;
 import com.aerospike.client.task.RegisterTask;
 
 
@@ -138,18 +141,14 @@ public class ExpireBin {
 	 * @param bins - list of bins to scan
 	 * @throws AerospikeException 
 	 */
-	public void clean(ScanPolicy scan, String namespace, String set, String ... bins) throws AerospikeException {
+	public ExecuteTask clean(Policy policy, Statement statement, String ... bins) throws AerospikeException {
 		final Value[] valueBins = new Value[bins.length];
 		int count = 0;
 		for (String bin : bins) {
 			valueBins[count] = Value.get(bin);
 			count++;
 		}
-		client.scanAll(scan, namespace, set, new ScanCallback() {
-			public void scanCallback(Key key, Record record) throws AerospikeException {
-				client.execute(new WritePolicy(), key, MODULE_NAME, "clean", valueBins);
-			}
-		}, new String[] {});
+		return client.execute(policy, statement, MODULE_NAME, "clean", valueBins);
 	}
 
 	/**
@@ -264,7 +263,10 @@ public class ExpireBin {
 			System.out.println("TestBin 3: " + eb.get(testKey3, "TestBin").toString());
 
 			System.out.println("Cleaning bins...");
-			eb.clean(new ScanPolicy(), "test", "expireBin", "TestBin");
+			Statement stmt = new Statement();
+			stmt.setNamespace("test");
+			stmt.setSetName("expireBin");
+			eb.clean(new WritePolicy(), stmt, "TestBin");
 		} catch (AerospikeException e) {
 			e.printStackTrace();
 			System.exit(1);
