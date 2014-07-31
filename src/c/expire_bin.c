@@ -13,6 +13,20 @@
 #define UDF_MODULE "expire_bin"
 #define LOG(_fmt, _args...) { printf(_fmt "\n", ## _args); fflush(stdout); }
 
+
+/*
+ * Attempt to retrieve values from list of bins. The bins
+ * can be expire bins or normal bins.
+ * 
+ * \param as The aerospike instance to use for this operation.
+ * \param err The as_error to be populated if an error occurs.
+ * \param policy The policy to use for this operation. If NULL, then the default policy will be used. 
+ * \param key The key of the record
+ * \param arglist The list of bin names to retrieve values from.
+ * \param result A list of bin values respective to the list of bin names passedin. if a bin is expired or empty, the
+ *        corresponding index in the list will be NULL.
+ * \return AEROSPIKE_OK if successful, otherwise an error.
+ */
 as_status
 as_expbin_get(aerospike* as, as_error* err, const as_policy_apply* policy, const as_key* key, as_list* arglist, as_val** result) 
 {
@@ -23,6 +37,25 @@ as_expbin_get(aerospike* as, as_error* err, const as_policy_apply* policy, const
 	return rc;
 }
 
+/* 
+ * Create or update expire bins. If the create flag is set to true,
+ * 	all newly created bins will be expire bins otherwise, only normal bins will be created
+ * 	and existing expire bins will be updated. Note: existing expire bins will not be converted
+ * 	into normal bins if create flag is off.
+ * 
+ * \param as The aerospike instance to use for this operation.
+ * \param err The as_error to be populated if an error occurs.
+ * \param policy The policy to use for this operation. If NULL, then the default policy will be used. 
+ * \param key The key of the record
+ * \param arglist The as_list containing the following:
+ *   - bin name - char* with bin name
+ *   - val - value to put inside bin
+ *   - bin_ttl - expiration time in seconds or -1 for no expiration
+ *   - create_flag: 0 to create expire bins, 1 to create normal bins
+ * \param result - 0 if successfully written, 1 otherwise
+ *
+ * \return AEROSPIKE_OK if successful, otherwise an error.
+ */
 as_status
 as_expbin_put(aerospike* as, as_error* err, const as_policy_apply* policy, const as_key* key, as_list* arglist, as_val** result) 
 {
@@ -33,6 +66,19 @@ as_expbin_put(aerospike* as, as_error* err, const as_policy_apply* policy, const
 	return rc;
 }
 
+/* Batch create or update expire bins for a given key. Use the as_map
+ *		{'bin' : bin_name, 'val' : bin_value, 'bin_ttl' : ttl}
+ * to store each put operation. Omit the bin_ttl to turn bin creation off.
+ * 
+ * \param as The aerospike instance to use for this operation.
+ * \param err The as_error to be populated if an error occurs.
+ * \param policy The policy to use for this operation. If NULL, then the default policy will be used. 
+ * \param key The key of the record
+ * \param arglist The list of as_maps in the following form: {'bin' : bin_name, 'val' : bin_value, 'bin_ttl' : ttl}
+ * \param result - 0 if all ops succeed, 1 otherwise
+ * 
+ * \return AEROSPIKE_OK if successful, otherwise an error
+ */
 as_status 
 as_expbin_puts(aerospike* as, as_error* err, const as_policy_apply* policy, const as_key* key, as_list* arglist, as_val** result) 
 {
@@ -43,6 +89,19 @@ as_expbin_puts(aerospike* as, as_error* err, const as_policy_apply* policy, cons
 	return rc;
 }
 
+/*
+ * Batch update the bin TTLs. Us this method to change or reset the bin TTL of
+ * multiple bins in a record. Use a dict to store each touch operation.
+ *
+ * \param as The aerospike instance to use for this operation.
+ * \param err The as_error to be populated if an error occurs.
+ * \param policy The policy to use for this operation. If NULL, then the default policy will be used. 
+ * \param key The key of the record
+ * \param arglist The list of as_maps in the following form: {'bin' : bin_name, 'bin_ttl' : ttl}
+ * \param result - 0 if all ops succeed, 1 otherwise
+ * 
+ * \return AEROSPIKE_OK if successful, otherwise an error
+ */
 as_status 
 as_expbin_touch(aerospike* as, as_error* err, const as_policy_apply* policy, const as_key* key, as_list* arglist, as_val** result) 
 {
@@ -53,8 +112,18 @@ as_expbin_touch(aerospike* as, as_error* err, const as_policy_apply* policy, con
 	return rc;
 }
 
+/* 
+ * Clear out the expired bins on a scan of the database
+ * 
+ * \param as The aerospike instance to use for this operation.
+ * \param ns The namespace to clean
+ * \param set The set name to clean
+ * \param arglist The list of bin names to clean.
+ *
+ * \return AEROSPIKE_OK if successful, otherwise an error
+ */
 as_status 
-as_expbin_clean(aerospike* as, as_error* err, const char* ns, const char* set,  const as_policy_apply* policy, as_list* arglist, as_val** result) 
+as_expbin_clean(aerospike* as, const char* ns, const char* set, as_list* arglist) 
 {
 	as_scan scan;
 	as_scan_init(&scan, ns, set);
