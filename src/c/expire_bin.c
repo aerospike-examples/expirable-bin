@@ -135,6 +135,9 @@ as_expbin_clean(aerospike* as, const char* ns, const char* set, as_list* arglist
 	return AEROSPIKE_OK;
 }
 
+//==========================================================
+// Expire Bin Example
+//  
 int
 main(int argc, char* argv[]) 
 {
@@ -149,11 +152,10 @@ main(int argc, char* argv[])
 	printf("Connecting to Aerospike server...\n");
 	if ( aerospike_connect(&as, &err) != AEROSPIKE_OK ) {
 		fprintf(stderr, "error(%d) %s at [%s:%d]", err.code, err.message, err.file, err.line);
+		exit(1);
 	}
 	printf("Connected!\n");
 
-	as_policy_apply policy;
-	as_policy_apply_init(&policy);
 	
 	as_key key1, key2, key3;
 	
@@ -165,11 +167,17 @@ main(int argc, char* argv[])
 		printf("Keys were not initiated.\n");
 		exit(1);
 	}
-	as_arraylist arglist;
-	as_list * l = (as_list *) as_arraylist_inita(&arglist, 4);
 
-	as_val result;
-	rc = as_expbin_put(as, err, key1, arglist, &result);
+	as_arraylist arglist;
+	as_arraylist_inita(&arglist, 4);
+	as_arraylist_append_str(&arglist, "TestBin");
+	as_arraylist_append_str(&arglist, "Hello World!");
+	as_arraylist_append_int64(&arglist, -1);
+	as_arraylist_append_int64(&arglist, 0);
+
+	as_val* result = NULL;
+
+	rc = as_expbin_put(&as, &err, NULL, &key1, (as_list*)&arglist, &result);
 	if (rc != AEROSPIKE_OK) {
 		exit(1);
 	}
