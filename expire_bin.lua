@@ -137,7 +137,7 @@ end
 --
 -- Params:
 -- (*) rec: record to retrieve bin from
--- (*) bin: bin names to retrieve from
+-- (*) bin: variable number of bin names to retrieve from
 --
 -- Return:
 -- 1 = error
@@ -237,7 +237,7 @@ local put = put;
 --
 -- Params:
 -- (*) rec: record to create/update bin to
--- (*) record_maps: list of maps containing the following fields
+-- (*) bin_map: variable number of maps containing the following fields
 -- 	(*) bin: bin name 
 -- 	(*) val: Value to store in bin
 -- 	(*) bin_ttl: (optional) if provided, expire_bin will be created if none exists
@@ -267,7 +267,7 @@ end
 --
 -- Params:
 -- (*) rec: record to retrieve bin from
--- (*) bin_maps: list of bin maps containing the following
+-- (*) bin_map: variable number of maps containing the following
 -- 	(*) bin: bin names 
 -- 	(*) bin_ttl: Bin TTL given in seconds or -1 to disable expiration
 --
@@ -309,12 +309,12 @@ function touch(rec, ...)
 end
 
 -- =========================================================================
--- clean_bin(): Empty expired bins
+-- clean_bin(): Rewrite expired bins to nil
 -- =========================================================================
 --
 -- Params:
 -- (*) rec: record to retrieve bin from
--- (*) bin: bins to clean 
+-- (*) bin: variable number of bins to clean 
 --
 -- Return:
 -- 0 = success
@@ -352,7 +352,7 @@ end
 --
 -- Return:
 -- time to live in seconds = success
--- nil = record doesn't exist or not a expire_bin
+-- nil = record or bin doesn't exist, or bin not a expire_bin
 -- =========================================================================
 function ttl(rec, bin)
 	local meth = "ttl";
