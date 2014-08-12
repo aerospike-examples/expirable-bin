@@ -216,6 +216,13 @@ public class ExpireBin {
 			testClient = new AerospikeClient("127.0.0.1", 3000);
 			System.out.println("Connected!");
 			Policy policy = new WritePolicy();
+			System.out.println("Registering UDF...");
+			RegisterTask regStatus = testClient.register(policy, "expire_bin.lua", "expire_bin.lua", Language.LUA);
+			if (regStatus.isDone()) {
+				System.out.println("UDF registered!");
+			}else {
+				throw new AerospikeException("UDF could not be registered!");
+			}
 			ExpireBin eb = new ExpireBin(testClient);
 			System.out.println("Creating expire bins...");
 			Key testKey = new Key("test", "expireBin", "eb");
