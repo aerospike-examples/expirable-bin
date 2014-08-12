@@ -16,12 +16,12 @@
 -- UDF Bin Expiration Module
 -- =========================================================================
 
--- This module provides basic functionality for bin level data expiration for the 
--- Aerospike database. This module uses special UDF bins that are specific to this
--- module and the bin expiration functionality will not be supported if used with
--- normal read/write operations. Also, this module does not fully remove data
--- from an expired bin for performance reasons so the data may still be accessible
--- through normal read/write operations. 
+-- This module provides basic functionality for bin level data expiration 
+-- for the Aerospike database. This module uses special UDF bins that are 
+-- specific to this module and the bin expiration functionality will not be 
+-- supported if used with normal read/write operations. Also, this module 
+-- does not fully remove data from an expired bin for performance reasons 
+-- so the data may still be accessible through normal read/write operations. 
 
 -- =========================================================================
 -- USAGE
@@ -43,13 +43,18 @@ local F = true;
 -- =========================================================================
 local EXP_ID = "expbin_ttl";
 local EXP_DATA = "data";
-
+local CITRUSLEAF_EPOCH = 1262304000
 -- Type Checking Vars
 local Map = getmetatable(map());
 
 -- ========================================================================= 
 -- Utility functions
 -- ========================================================================= 
+
+-- Get time for TTL
+local function get_time()
+	return os.time() - CITRUSLEAF_EPOCH
+end
 
 -- Check if bin is an expbin
 local function is_expbin(bin)
@@ -87,7 +92,7 @@ end
 -- Check whether bin_ttl has expired yet
 local function not_expired(bin_ttl)
 	if (bin_ttl ~= nil) then
-		if (bin_ttl == -1 or os.time() <= bin_ttl) then
+		if (bin_ttl == -1 or get_time() <= bin_ttl) then
 			return true;
 		end
 	end
@@ -136,23 +141,24 @@ end
 --
 -- Return:
 -- 1 = error
--- list containing each respective bin value = success
+-- map containing each respective bin value = success
 -- =========================================================================
 function get(rec, ...)
 	local meth = "get";
 	GP=F and debug("[BEGIN]<%s> bin:<%s>", meth, tostring(bin));
 	if aerospike:exists(rec) then
-		local return_list = list();
+		local return_map = map();
 		-- Iterate through every bin request 
 		for i,v in ipairs(arg) do
 			local bin_map = rec[v];
-			return_list[i] = get_bin(bin_map);
+			return_map[v] = get_bin(bin_map);
 		end
-		GP=F and debug("[EXIT]<%s> Returning bin list", meth);
-		return return_list;
+		GP=F and debug("[EXIT]<%s> Returning bin map: %s", meth, tostring(return_map));
+		return return_map;
 	else
 		GP=F and debug("[EXIT]<%s> Record does not exist.", meth);
 	end
+	return 1
 end
 
 -- =========================================================================
@@ -166,17 +172,16 @@ end
 -- (*) bin: bin name 
 -- (*) val: Value to store in bin
 -- (*) bin_ttl: Bin TTL given in seconds or -1 to disable expiration
--- (*) create: set to true to create new exp_bins
 --
 -- Return:
 -- 1 = error
 -- 0 = success
 -- =========================================================================
-function put(rec, bin, val, bin_ttl, create)
+function put(rec, bin, val, bin_ttl)
 	local meth = "put";
-	GP=F and debug("[BEGIN]<%s> bin:%s value:%s ttl:%s exp_create:%s", meth, bin, tostring(val), tostring(bin_ttl), tostring(create));
+	GP=F and debug("[BEGIN]<%s> bin:%s value:%s ttl:%s ", meth, bin, tostring(val), tostring(bin_ttl));
 	local exp_create;
-	if (create == 0) then
+	if (bin_ttl ~= nil) then
 		exp_create = true;
 	else
 		exp_create = false;
@@ -186,6 +191,7 @@ function put(rec, bin, val, bin_ttl, create)
 	if (rec[bin] == nil and not exp_create ) then
 		GP=F and debug("%s : bin doesn't exist and expire bin creation disabled", meth);
 		rec[bin] = val;
+		return push_rec(rec);
 	else
 		local map_bin = rec[bin];
 		if (not is_expbin(map_bin)) then	
@@ -211,113 +217,18 @@ function put(rec, bin, val, bin_ttl, create)
 			return 1;
 		end	
 		if (bin_ttl ~= -1) then
-			map_bin[EXP_ID] = bin_ttl + os.time();
+			map_bin[EXP_ID] = bin_ttl + get_time();
 		else
 			map_bin[EXP_ID] = bin_ttl;
 		end
 		map_bin[EXP_DATA] = val;
 		rec[bin] = map_bin;
-	end
-	GP=F and debug("[ENTER]<%s> rec: %s", meth, tostring(rec));
-end
-
--- =========================================================================
--- get(): Get bin from record
--- =========================================================================
--- 
--- USAGE: as.execute(policy, key, "expire_bin", "get", bin);
---
--- Params:
--- (*) rec: record to retrieve bin from
--- (*) bin: bin names to retrieve from
---
--- Return:
--- 1 = error
--- list containing each respective bin value = success
--- =========================================================================
-function get(rec, ...)
-	local meth = "get";
-	GP=F and debug("[BEGIN]<%s> bin:<%s>", meth, tostring(bin));
-	if aerospike:exists(rec) then
-		local return_list = list();
-		-- Iterate through every bin request 
-		for i,v in ipairs(arg) do
-			local bin_map = rec[v];
-			return_list[i] = get_bin(bin_map);
-		end
-		GP=F and debug("[EXIT]<%s> Returning bin list", meth);
-		return return_list;
-	else
-		GP=F and debug("[EXIT]<%s> Record does not exist.", meth);
+		push_rec(rec);
+		return 0;
 	end
 end
 
--- =========================================================================
--- put(): Store bin to record
--- =========================================================================
---
--- USAGE: as.execute(policy, key, "expire_bin", "put", bin, val, bin_ttl, create);
---
--- Params:
--- (*) rec: record to retrieve bin from
--- (*) bin: bin name 
--- (*) val: Value to store in bin
--- (*) bin_ttl: Bin TTL given in seconds or -1 to disable expiration
--- (*) create: set to true to create new exp_bins
---
--- Return:
--- 1 = error
--- 0 = success
--- =========================================================================
-function put(rec, bin, val, bin_ttl, create)
-	local meth = "put";
-	GP=F and debug("[BEGIN]<%s> bin:%s value:%s ttl:%s exp_create:%s", meth, bin, tostring(val), tostring(bin_ttl), tostring(create));
-	local exp_create;
-	if (create == 0) then
-		exp_create = true;
-	else
-		exp_create = false;
-	end
-
-	-- if bin creation is off, don't create any new exp bins
-	if (rec[bin] == nil and not exp_create ) then
-		GP=F and debug("%s : bin doesn't exist and expire bin creation disabled", meth);
-		rec[bin] = val;
-	else
-		local map_bin = rec[bin];
-		if (not is_expbin(map_bin)) then	
-			if (exp_create) then
-				map_bin = map();
-			else
-				-- bin creation off, creating normal bin
-				rec[bin] = val;
-				return push_rec(rec);
-			end
-		end
-		-- Create rec on server to get default server ttl
-		local temp_rec = false;
-		if not aerospike:exists(rec) then
-			aerospike:create(rec);
-			temp_rec = true;
-		end
-		if (not valid_time(bin_ttl, record.ttl(rec))) then
-			GP=F and debug("%s : Record and Bin TTL conflict bin %s, rec %s", meth, tostring(bin_ttl), tostring(record.ttl(rec)));
-			if (temp_rec) then
-				aerospike:remove(rec);
-			end
-			return 1;
-		end	
-		if (bin_ttl ~= -1) then
-			map_bin[EXP_ID] = bin_ttl + os.time();
-		else
-			map_bin[EXP_ID] = bin_ttl;
-		end
-		map_bin[EXP_DATA] = val;
-		rec[bin] = map_bin;
-	end
-	return push_rec(rec);
-end
-
+local put = put;
 -- =========================================================================
 -- puts(): Store bin to record
 -- =========================================================================
@@ -340,14 +251,7 @@ function puts(rec, ...)
 	GP=F and debug("[BEGIN]<%s>", meth);
 	for i,v in ipairs(arg) do
 		local map_bin = v;
-		local bin_ttl = map_bin["bin_ttl"];
-		local exp_create = false;
-		if (bin_ttl == nil) then
-			bin_ttl = -1;
-		else 
-			exp_create = true;
-		end
-		local return_val = put(rec, map_bin["bin"], map_bin["val"], bin_ttl, exp_create);
+		local return_val = put(rec, map_bin["bin"], map_bin["val"], map_bin["bin_ttl"]);
 		if (return_val == 1) then
 			return 1;
 		end
@@ -373,33 +277,35 @@ end
 -- =========================================================================
 function touch(rec, ...)
 	local meth = "touch";
-	GP=F and debug("[BEGIN]<%s>", meth);
+	GP=F and debug("[BEGIN]<%s> arg: %s", meth, tostring(arg));
 	if aerospike:exists(rec) then
 		for i,v in ipairs(arg) do
 			local bin_map = v;
 			local bin_name = bin_map["bin"]
 			if (not valid_time(v["bin_ttl"], record.ttl(rec))) then 
-				GP=F and debug("%s : Record TTL is less than Bin TTL for bin %s", meth, bin_name);
+				GP=F and debug("<%s> : Record TTL is less than Bin TTL for bin %s", meth, bin_name);
 				return 1;
 			else
 				local rec_map = rec[bin_name];
 				if (is_expbin(rec_map)) then
 					if (bin_map["bin_ttl"] ~= -1) then
-						rec_map[EXP_ID] = bin_map["bin_ttl"] + os.time();
+						rec_map[EXP_ID] = bin_map["bin_ttl"] + get_time();
 					else
 						rec_map[EXP_ID] = -1;
 					end
+					rec[bin_name] = rec_map;
+					aerospike:update(rec);
+					return 0;
 				else
-					GP=F and debug("expire_bin.%s : Bin %s is not a valid expbin", meth, bin_name);
+					GP=F and debug("<%s> : Bin %s is not a valid expbin", meth, bin_name);
 					return 1;
 				end
 			end	
 		end
-		aerospike:update(rec);
-		return 0;
+	else
+		GP=F and debug("<%s> : Record doesn't exist", meth);
+		return 1;
 	end
-	GP=F and debug("expire_bin.%s : Record doesn't exist", meth);
-	return 1;
 end
 
 -- =========================================================================
@@ -476,8 +382,8 @@ return {
 	clean = clean,
 	ttl = ttl
 	-- uncomment to test
-	,is_expbin = is_expbin,
-	valid_time = valid_time,
-	not_expired = not_expired,
-	get_bin = get_bin
+	-- ,is_expbin = is_expbin,
+	-- valid_time = valid_time,
+	-- not_expired = not_expired,
+	-- get_bin = get_bin
 }
