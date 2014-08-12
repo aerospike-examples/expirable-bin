@@ -92,7 +92,7 @@ end
 -- Check whether bin_ttl has expired yet
 local function not_expired(bin_ttl)
 	if (bin_ttl ~= nil) then
-		if (bin_ttl == -1 or get_time() <= bin_ttl) then
+		if (bin_ttl == 0 or get_time() <= bin_ttl) then
 			return true;
 		end
 	end
@@ -219,7 +219,7 @@ function put(rec, bin, val, bin_ttl)
 		if (bin_ttl ~= -1) then
 			map_bin[EXP_ID] = bin_ttl + get_time();
 		else
-			map_bin[EXP_ID] = bin_ttl;
+			map_bin[EXP_ID] = 0;
 		end
 		map_bin[EXP_DATA] = val;
 		rec[bin] = map_bin;
@@ -291,7 +291,7 @@ function touch(rec, ...)
 					if (bin_map["bin_ttl"] ~= -1) then
 						rec_map[EXP_ID] = bin_map["bin_ttl"] + get_time();
 					else
-						rec_map[EXP_ID] = -1;
+						rec_map[EXP_ID] = 0;
 					end
 					rec[bin_name] = rec_map;
 					aerospike:update(rec);
@@ -327,6 +327,7 @@ function clean(rec, ...)
 		for i,v in ipairs(arg) do
 			local bin = v;
 			local temp_bin = rec[bin];
+			GP=F and debug("<%s> Cleaning %s", meth, tostring(bin));
 			if (is_expbin(temp_bin) and not not_expired(temp_bin[EXP_ID])) then
 				rec[bin] = nil;
 				GP=F and debug("expire_bin.%s : Bin %s expired, erasing bin", meth, bin);
@@ -360,7 +361,17 @@ function ttl(rec, bin)
 	if aerospike:exists(rec) then
 		local binMap = rec[bin];
 		if (is_expbin(binMap)) then
-			return binMap[EXP_ID];
+			local bin_ttl = binMap[EXP_ID];
+			if not_expired(bin_ttl) then
+				if (bin_ttl == 0) then
+					return -1;
+				else
+					return bin_ttl - get_time(); 
+				end
+			else
+				GP=F and debug("<%s> Bin has expired", meth);
+				return nil;
+			end
 		else
 			GP=F and debug("[ERROR]<%s> Bin isn't an expire bin", meth);
 			return nil;

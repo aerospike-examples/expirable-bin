@@ -272,7 +272,7 @@ public class ExpireBin {
 			Statement stmt = new Statement();
 			stmt.setNamespace("test");
 			stmt.setSetName("expireBin");
-			ExecuteTask task = eb.clean(new WritePolicy(), stmt, "TestBin");
+			ExecuteTask task = eb.clean(new WritePolicy(), stmt, "TestBin1", "TestBin2", "TestBin3", "TestBin4", "TestBin4");
 			while (!task.isDone()) {
 				System.out.println("Scan in progress...");
 				try {
