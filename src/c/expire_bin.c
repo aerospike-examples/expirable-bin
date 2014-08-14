@@ -51,12 +51,12 @@ as_expbin_get(aerospike* as, as_error* err, const as_policy_apply* policy, const
 	if (rc != AEROSPIKE_OK) {
 		LOG("as_expbin_get() returned %d - %s", err->code, err->message);
 	}else {
-		int list_size = as_list_size(arglist));
-		*result = as_record_new(list_size)
+		int list_size = as_list_size(arglist);
+		*result = as_record_new(list_size);
 		for (int i = 0; i < as_list_size(arglist); i++) {
 			as_val* temp_val = as_list_get(((as_list*) temp), i);
 			if (*temp_val) {
-				as_record_set(*result, (as_bin_name)as_string_get((as_string*)as_list_get(arglist, i)))
+				as_record_set(*result, (as_bin_name)as_string_get((as_string*)as_list_get(arglist, i)));
 			}
 		}
 	}
@@ -180,8 +180,8 @@ as_expbin_ttl(aerospike* as, as_error* err, const as_policy_apply* policy, const
 uint64_t 
 as_expbin_clean(aerospike* as, as_error* err, const as_policy_scan* policy, as_scan* scan, as_list* binlist) 
 {
-	uint_64_t scan_id = NULL;
-	if (as_scan_apply_each(&scan, UDF_MODULE, "clean", arglist) != true) {
+	uint64_t scan_id = NULL;
+	if (as_scan_apply_each(&scan, UDF_MODULE, "clean", binlist) != true) {
 		LOG("UDF apply failed");
 	}
 	as_status rc = aerospike_scan_background(as, err, policy, scan, &scan_id);

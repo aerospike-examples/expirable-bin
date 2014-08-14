@@ -58,7 +58,6 @@ end
 
 -- Check if bin is an expbin
 local function is_expbin(bin)
-	-- TODO: Test functionality
 	if (bin ~= nil 
 		and type(bin) == 'userdata' 
 		and getmetatable(bin) == Map 
