@@ -1,25 +1,27 @@
-expirable_bin
+Expirable-bin
 =============
 
-Managing bins with time-to-live in Aerospike, using User Defined Functions.
+Provide bin-level expiration functionlaity in Aerospike, using User Defined Functions.
+
+The module provides:
+record.put - insert bins with optional time-to-live.
+record.get - return bins that are not expired.
+scan - scan the database, rewrite records which expired bins.
+
+Client interface is available for Java, C, Python, and Lua
 
 ## Installation
 
-The source for this module is available on Github, at https://github.com/aerospike/expirable_bin.git
+The source for this module is available on Github, at https://github.com/aerospike/expirable-bin.git
 Clone the Github repository using the following command:
 ```
-git clone https://github.com/aerospike/expirable_bin.git
+git clone https://github.com/aerospike/expirable-bin.git
 ```
 
 Register the lua file using aql,
 ```aql
 aql -c "register module 'expire_bin.lua'"
 ```
-
-## Notice to Users
-This module provides bin level data expiration for Aerospike using implementation
-specific UDF bins. Any standard read/write operations using the Aerospike clients
-will not be supported and may interfere with the functionality of this module.
 
 ## Usage
 This module can be used from client calls or within other UDFs. For examples of client
@@ -43,8 +45,11 @@ For usage within UDFs, import the module as follows:
 	exp_bin.touch(rec, map {bin = "bin_name", bin_ttl = 10});
 	exp_bin.clean(rec, bin);
 ```
-## Architecture
+## Implementation
 Expire bins are map objects encapsulating the bin data and bin TTL. The bin operations for
-expire bin perform retrieval and sending operations while checking the stored metadata 
-to perform the expiration functionality. Because the bins are essentially storing maps,
-there is no support of secondary index with expire bins yet. 
+expire bin perform retrieval and sending operations while checking the stored TTL 
+to perform the expiration functionality. 
+
+## Known Limitations
+The current limitation stores maps,there is no support of secondary index with expire bins.
+If a put call is made, it can overwrite a special expirable-bin.
