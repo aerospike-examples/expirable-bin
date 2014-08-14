@@ -125,7 +125,7 @@ class ExpireBin:
 		Raises:
 			Exception: Exception with details of server error.
 		"""
-		raise Exception("Scan UDF not yet implemented in python client")
+		raise NotImplementedError("Scan UDF not yet implemented in python client")
 		#def callback((key, meta, record)):
 		#	self.client.apply(key, MODULE_NAME, "does_not_exist", list(bins), self.policy)
 		#scan.foreach(callback)
@@ -150,6 +150,15 @@ def main():
 	config = { 'hosts' : [ ('127.0.0.1', 3000) ]}
 	policy = { "timeout" : 2000 }
 	testClient = aerospike.client(config).connect()
+	try:
+		print "Registering UDF..."
+		filename = "../../expire_bin.lua"
+		udf_type = 0
+		testClient.udf_put(policy, filename, udf_type)
+		print "UDF Registered!"
+	except Exception as e:
+		print "Error registering lua function: {0}".format(e)
+
 	eb = ExpireBin(testClient)
 	key = ("test", "expireBin", "eb")
 
@@ -171,7 +180,7 @@ def main():
 	print "TestBin 3 TTL: {0}".format(eb.ttl(policy, key, "TestBin3"))
 	print "TestBin 4 TTL: {0}".format(eb.ttl(policy, key, "TestBin4"))
 	print "TestBin 5 TTL: {0}".format(eb.ttl(policy, key, "TestBin5"))
-	
+
 
 	print "Waiting for TestBin 3 to expire..."
 
@@ -195,11 +204,15 @@ def main():
 
 
 	# scan udf not yet implemented in python client
-	#print "Cleaning bins..."
+	print "Cleaning bins..."
 
-	#testScan = testClient.scan("test", "expireBin")
-	#eb.clean(testScan, "TestBin")
+	testScan = testClient.scan("test", "expireBin")
+	try:
+		eb.clean(policy, testScan, "TestBin1", "TestBin2", "TestBin3", "TestBin4", "TestBin5")
+	except NotImplementedError as e:
+		print "Scan UDF not implemented in current version of python client."
 
+	testClient.close()
 if __name__ == "__main__":
 	main()
 

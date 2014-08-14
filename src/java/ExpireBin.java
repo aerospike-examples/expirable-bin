@@ -217,12 +217,17 @@ public class ExpireBin {
 			System.out.println("Connected!");
 			Policy policy = new WritePolicy();
 			System.out.println("Registering UDF...");
-			RegisterTask regStatus = testClient.register(policy, "expire_bin.lua", "expire_bin.lua", Language.LUA);
-			if (regStatus.isDone()) {
-				System.out.println("UDF registered!");
-			}else {
-				throw new AerospikeException("UDF could not be registered!");
+			try {
+				RegisterTask regStatus = testClient.register(policy, "expire_bin.lua", "expire_bin.lua", Language.LUA);
+				if (regStatus.isDone()) {
+					System.out.println("UDF registered!");
+				}else {
+					throw new AerospikeException("UDF could not be registered!");
+				}
+			} catch (Exception e) {
+				System.out.println("Error registering UDF: " + e.toString());
 			}
+			
 			ExpireBin eb = new ExpireBin(testClient);
 			System.out.println("Creating expire bins...");
 			Key testKey = new Key("test", "expireBin", "eb");
@@ -238,7 +243,7 @@ public class ExpireBin {
 			System.out.println("TestBins : " + eb.get(policy, testKey, "TestBin1", "TestBin2", "TestBin3", "TestBin4", "TestBin5"));
 			
 			
-			System.out.println("Current time is: " + (System.currentTimeMillis() / 1000 - CITRUSLEAF_EPOCH) + "\nGetting bin TTLs...");
+			System.out.println("Getting bin TTLs...");
 			System.out.println("TestBin 1 TTL: " + eb.ttl(policy, testKey, "TestBin1"));
 			System.out.println("TestBin 2 TTL: " + eb.ttl(policy, testKey, "TestBin2"));
 			System.out.println("TestBin 3 TTL: " + eb.ttl(policy, testKey, "TestBin3"));
@@ -261,7 +266,7 @@ public class ExpireBin {
 			
 			eb.touch(policy, testKey, createBinMap("TestBin1", null, 10), createBinMap("TestBin4", null, 5));
 			
-			System.out.println("Current time is: " + (System.currentTimeMillis() / 1000 - CITRUSLEAF_EPOCH) + "\nGetting bin TTLs...");
+			System.out.println("Getting bin TTLs...");
 			System.out.println("TestBin 1 TTL: " + eb.ttl(policy, testKey, "TestBin1"));
 			System.out.println("TestBin 2 TTL: " + eb.ttl(policy, testKey, "TestBin2"));
 			System.out.println("TestBin 3 TTL: " + eb.ttl(policy, testKey, "TestBin3"));
@@ -272,7 +277,7 @@ public class ExpireBin {
 			Statement stmt = new Statement();
 			stmt.setNamespace("test");
 			stmt.setSetName("expireBin");
-			ExecuteTask task = eb.clean(new WritePolicy(), stmt, "TestBin");
+			ExecuteTask task = eb.clean(new WritePolicy(), stmt, "TestBin1", "TestBin2", "TestBin3", "TestBin4", "TestBin4");
 			while (!task.isDone()) {
 				System.out.println("Scan in progress...");
 				try {
