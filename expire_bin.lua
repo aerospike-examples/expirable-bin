@@ -74,12 +74,8 @@ local function valid_time(bin_ttl, rec_ttl)
 		GP=F and debug("<%s> bin_ttl is invalid", meth);
 		return false;
 	end
-	if (rec_ttl == 0) then 
+	if (bin_ttl == 0 or bin_ttl == -1) then 
 		return true;
-	end
-	if (bin_ttl == -1) then
-		GP=F and debug("<%s> bin_ttl is invalid", meth);
-		return false;
 	end
 	if (bin_ttl > rec_ttl) then
 		GP=F and debug("<%s> bin_ttl is invalid", meth);
@@ -128,6 +124,11 @@ local function push_rec(rec)
 	end
 end
 
+-- Count the number of parameters
+function table.pack(...)
+  return {n = select("#", ...), ...}
+end
+
 -- =========================================================================
 -- get(): Get bin from record
 -- =========================================================================
@@ -144,13 +145,14 @@ end
 -- =========================================================================
 function get(rec, ...)
 	local meth = "get";
-	GP=F and debug("[BEGIN]<%s> bin:<%s>", meth, tostring(bin));
+	GP=F and debug("[BEGIN]<%s> bin:<%s>", meth, tostring(arg));
+	local arg = table.pack(...)
 	if aerospike:exists(rec) then
 		local return_map = map();
 		-- Iterate through every bin request 
-		for i,v in ipairs(arg) do
-			local bin_map = rec[v];
-			return_map[v] = get_bin(bin_map);
+		for i=1, arg.n do
+			local bin_map = rec[arg[i]];
+			return_map[arg[i]] = get_bin(bin_map);
 		end
 		GP=F and debug("[EXIT]<%s> Returning bin map: %s", meth, tostring(return_map));
 		return return_map;
@@ -186,14 +188,14 @@ function put(rec, bin, val, bin_ttl)
 		exp_create = false;
 	end
 
-	-- if bin creation is off, don't create any new exp bins
-	if (rec[bin] == nil and not exp_create ) then
+	-- If bin creation is off, don't create any new exp bins
+	if (rec[bin] == nil and not exp_create) then
 		GP=F and debug("%s : bin doesn't exist and expire bin creation disabled", meth);
 		rec[bin] = val;
 		return push_rec(rec);
 	else
-		local map_bin = rec[bin];
-		if (not is_expbin(map_bin)) then	
+		local map_bin = bin;
+		if (not is_expbin(map_bin)) then
 			if (exp_create) then
 				map_bin = map();
 			else
@@ -244,17 +246,18 @@ local put = put;
 -- Return:
 -- 1 = error
 -- 0 = success
+
 -- =========================================================================
 function puts(rec, ...)
 	local meth = "puts";
 	GP=F and debug("[BEGIN]<%s>", meth);
-	for i,v in ipairs(arg) do
-		local map_bin = v;
-		local return_val = put(rec, map_bin["bin"], map_bin["val"], map_bin["bin_ttl"]);
+	local arg = table.pack(...)
+	for i=1, arg.n do
+		local return_val = put(rec, arg[i].bin, arg[i].val, arg[i].bin_ttl);
 		if (return_val == 1) then
 			return 1;
 		end
-	end
+    end
 	return 0;
 end
 
@@ -277,18 +280,18 @@ end
 function touch(rec, ...)
 	local meth = "touch";
 	GP=F and debug("[BEGIN]<%s> arg: %s", meth, tostring(arg));
+	local arg = table.pack(...)
 	if aerospike:exists(rec) then
-		for i,v in ipairs(arg) do
-			local bin_map = v;
-			local bin_name = bin_map["bin"]
-			if (not valid_time(v["bin_ttl"], record.ttl(rec))) then 
+		for i=1, arg.n do
+			local bin_name = arg[i].bin
+			if (not valid_time(arg[i].bin_ttl, record.ttl(rec))) then 
 				GP=F and debug("<%s> : Record TTL is less than Bin TTL for bin %s", meth, bin_name);
 				return 1;
 			else
-				local rec_map = rec[bin_name];
+				local rec_map = arg[i].bin;
 				if (is_expbin(rec_map)) then
-					if (bin_map["bin_ttl"] ~= -1) then
-						rec_map[EXP_ID] = bin_map["bin_ttl"] + get_time();
+					if (arg[i].bin_ttl ~= -1) then
+						rec_map[EXP_ID] = arg[i].bin_ttl + get_time();
 					else
 						rec_map[EXP_ID] = 0;
 					end
@@ -322,9 +325,10 @@ end
 function clean(rec, ...)
 	local meth = "clean";
 	GP=F and debug("[BEGIN]<%s> ", meth);
+	local arg = table.pack(...)
 	if aerospike:exists(rec) then
-		for i,v in ipairs(arg) do
-			local bin = v;
+		for i=1, arg.n do
+			local bin = arg[i];
 			local temp_bin = rec[bin];
 			GP=F and debug("<%s> Cleaning %s", meth, tostring(bin));
 			if (is_expbin(temp_bin) and not not_expired(temp_bin[EXP_ID])) then
