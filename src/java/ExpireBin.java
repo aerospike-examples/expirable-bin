@@ -4,7 +4,7 @@
 //   you may not use this file except in compliance with the License.
 //   You may obtain a copy of the License at
 //
-//       http://www.apache.org/licenses/LICENSE-2.0
+//   http://www.apache.org/licenses/LICENSE-2.0
 //
 //   Unless required by applicable law or agreed to in writing, software
 //   distributed under the License is distributed on an "AS IS" BASIS,
@@ -30,36 +30,37 @@ import com.aerospike.client.task.ExecuteTask;
 import com.aerospike.client.task.RegisterTask;
 
 public class ExpireBin {
-	private static final String GET_OP = "get";
-	private static final String PUT_OP = "put";
-	private static final String BATCH_PUT_OP = "puts";
-	private static final String TOUCH_OP = "touch";
-	private static final String CLEAN_OP = "clean";
-	private static final String TTL_OP = "ttl";
-	private static final String MODULE_NAME = "expire_bin";
-	private static final String BIN_NAME_FIELD = "bin";
+	private static final String GET_OP 			= "get";
+	private static final String PUT_OP 			= "put";
+	private static final String BATCH_PUT_OP 	= "puts";
+	private static final String TOUCH_OP 		= "touch";
+	private static final String CLEAN_OP 		= "clean";
+	private static final String TTL_OP 			= "ttl";
+	private static final String MODULE_NAME     = "expire_bin";
+	private static final String BIN_NAME_FIELD  = "bin";
 	private static final String BIN_VALUE_FIELD = "val";
-	private static final String BIN_TTL_FIELD = "bin_ttl";
+	private static final String BIN_TTL_FIELD   = "bin_ttl";
+	
 	public AerospikeClient client;
 
 	/**
-	 * Initialize ExpireBin object with suitable client and policy
+	 * Initialize ExpireBin object with suitable client and policy.
 	 * 
-	 * @param client - client to perform operations on
+	 * @param client - Client to perform operations on.
 	 */
 	public ExpireBin(AerospikeClient client) {
 		this.client = client;
 	}
 
 	/**
-	 * Try to get values from the expire bin
+	 * Try to get values from the expire bin.
 	 * 
-	 * @param policy - configuration parameters for op
-	 * @param - key to get from
-	 * @param bins - list of bin names to attempt to get from
-	 * @return Record containing respective values for bins that haven't
-	 * expired / exist. The gen and exp numbers on the Record are not valid.
-	 * @throws AerospikeException 
+	 * @param policy - Configuration parameters for op.
+	 * @param key    - Key to get from.
+	 * @param bins   - List of bin names to attempt to get from.
+	 * @return       - Record containing respective values for bins that haven't
+	 * 		   		   expired/exist. The gen and exp numbers on the Record are not valid.
+	 * @throws       - AerospikeException.
 	 */
 	public Object get(Policy policy, Key key, String ... bins) throws AerospikeException {
 		Value[] valueBins = new Value[bins.length];
@@ -83,52 +84,50 @@ public class ExpireBin {
 		} else if (returnVal == null) {
 			return null;
 		}else {
-			throw new AerospikeException("Get operation failed.");
+			throw new AerospikeException("Get operation failed");
 		}
 	}
 
 	/**
-	 * Create or update expire bins. If the binTTL is not null, 
-	 * all newly created bins will be expire bins otherwise, only normal bins will be created
-	 * Note: existing expire bins will not be converted
-	 * into normal bins if binTTL is not specified
+	 * Create or update expire bins. If the binTTL is not null, all newly created bins will be expire  
+	 * bin, otherwise, only normal bins will be created.
+	 * Note: Existing expire bins will not be converted into normal bins if binTTL is not specified.
 	 * 
-	 * @param policy - configuration parameters for op
-	 * @param key - Record key to apply operation on
-	 * @param binName - Bin name to create or update
-	 * @param val - bin value
-	 * @param binTTL - expiration time in seconds or -1 for no expiration
-	 * @return 0 in success, 1 if error
-	 * @throws AerospikeException 
+	 * @param policy  - Configuration parameters for op.
+	 * @param key     - Record key to apply operation on.
+	 * @param binName - Bin name to create or update.
+	 * @param val     - Bin value.
+	 * @param binTTL  - Expiration time in seconds or -1 for no expiration.
+	 * @return        - 0 if success, 1 if error.
+	 * @throws        - AerospikeException.
 	 */
 	public Integer put(Policy policy, Key key, String binName, Value val, int binTTL) throws AerospikeException {
 		return (Integer) client.execute(policy, key, MODULE_NAME, PUT_OP, Value.get(binName), val, Value.get(binTTL));
 	}
 
 	/**
-	 * Batch create or update expire bins for a given key. Use the createBinMap
-	 * method to create each put operation. Supply a binTTL of 0 to turn bin 
-	 * creation off. 
+	 * Batch create or update expire bins for a given key. Use the createBinMap method
+	 * to create each put operation. Supply a binTTL of 0 to turn bin creation off.  
 	 * 
-	 * @param policy - configuration parameters for op
-	 * @param key - Record key to store bins
-	 * @param mapBins - list of Maps generated by createBinMap containing operation arguments
-	 * @return - 0 if all bins succeeded, 1 if failure
-	 * @throws AerospikeException 
+	 * @param policy  - Configuration parameters for op.
+	 * @param key     - Record key to store bins.
+	 * @param mapBins - List of Maps generated by createBinMap containing operation arguments.
+	 * @return        - 0 if all bins succeeded, 1 if failure.
+	 * @throws        - AerospikeException.
 	 */
 	public Integer puts(Policy policy, Key key, MapValue ... mapBins) throws AerospikeException {
-		return (Integer)client.execute(policy, key, MODULE_NAME, BATCH_PUT_OP, (Value[]) mapBins);
+		return (Integer) client.execute(policy, key, MODULE_NAME, BATCH_PUT_OP, (Value[]) mapBins);
 	}
 
 	/**
 	 * Batch update the bin TTLs. Use this method to change or reset 
 	 * the bin TTL of multiple bins in a record. 
 	 * 
-	 * @param policy - configuration parameters for op
-	 * @param key - Record key
-	 * @param mapBins - list of MapValues generated by createMapBin containing operation arguments
-	 * @return 0 on success of all touch operations, 1 if a failure occurs
-	 * @throws AerospikeException 
+	 * @param policy  - Configuration parameters for op.
+	 * @param key     - Record key.
+	 * @param mapBins - List of MapValues generated by createMapBin containing operation arguments.
+	 * @return 		  - 0 on success of all touch operations, 1 if a failure occurs.
+	 * @throws        - AerospikeException.
 	 */
 	public Integer touch(Policy policy, Key key, MapValue ... mapBins) throws AerospikeException {
 		for (Value.MapValue map : mapBins) {
@@ -137,18 +136,18 @@ public class ExpireBin {
 				throw new AerospikeException("TTL not specified");
 			}
 		}
-		return (Integer)client.execute(policy, key, MODULE_NAME, TOUCH_OP, (Value[]) mapBins);
+		return (Integer) client.execute(policy, key, MODULE_NAME, TOUCH_OP, (Value[]) mapBins);
 	}
 
 	/**
-	 * Perform a scan of the database and clear out expired expire bins
+	 * Perform a scan of the database and clear out expired expire bins.
 	 * 
-	 * @param policy - configuration parameters for op
-	 * @param scan - scan policy containing which records should be scanned
-	 * @param namespace - namespace of server to scan
-	 * @param set - set of server to scan
-	 * @param bins - list of bins to scan
-	 * @throws AerospikeException 
+	 * @param policy    - Configuration parameters for op.
+	 * @param scan      - Scan policy containing which records should be scanned.
+	 * @param namespace - Namespace of server to scan.
+	 * @param set       - Set of server to scan.
+	 * @param bins      - List of bins to scan.
+	 * @throws          - AerospikeException.
 	 */
 	public ExecuteTask clean(Policy policy, Statement statement, String ... bins) throws AerospikeException {
 		final Value[] valueBins = new Value[bins.length];
@@ -163,24 +162,24 @@ public class ExpireBin {
 	/**
 	 * Get time bin will expire in seconds.
 	 * 
-	 * @param policy - configuration parameters for op
-	 * @param key - Record key
-	 * @param bin - Bin Name
-	 * @return time in seconds bin will expire, -1 or null if it doesn't expire
-	 * @throws AerospikeException 
+	 * @param policy - Configuration parameters for op.
+	 * @param key    - Record key.
+	 * @param bin    - Bin Name.
+	 * @return       - Time in seconds bin will expire, -1 or null if it doesn't expire.
+	 * @throws       - AerospikeException. 
 	 */
 	public Integer ttl(Policy policy, Key key, String bin) throws AerospikeException {
-		return (Integer)(client.execute(policy, key, MODULE_NAME, TTL_OP, Value.get(bin)));
+		return (Integer) (client.execute(policy, key, MODULE_NAME, TTL_OP, Value.get(bin)));
 	}
 	
 	/**
-	 * createBinMap is used to generate maps for use with batch put and touch operations.
+	 * Used to generate maps for use with batch put and touch operations.
 	 * 
-	 * @param binName - name of bin to perform op on
-	 * @param val - value to insert into bin (PUT OP ONLY)
-	 * @param binTTL - bin_ttl for bin (-1 for no expiration, 0 to create normal bin)
-	 * @return
-	 * @throws AerospikeException 
+	 * @param binName - Name of bin to perform op on.
+	 * @param val     - Value to insert into bin (PUT OP ONLY).
+	 * @param binTTL  - Bin ttl for bin (-1 for no expiration, 0 to create normal bin).
+	 * @return        - The generated map.
+	 * @throws        - AerospikeException.
 	 */
 	public static MapValue createBinMap(String binName, Value val, int binTTL) throws AerospikeException {
 		HashMap<String, Object> rm = new HashMap<String, Object>();
@@ -192,9 +191,7 @@ public class ExpireBin {
 		if (val != null) {
 			rm.put(BIN_VALUE_FIELD, val);
 		}
-		
 		rm.put (BIN_TTL_FIELD, binTTL);
-		
 		return new MapValue(rm);
 	}
 	
@@ -202,7 +199,7 @@ public class ExpireBin {
 		AerospikeClient testClient = null;
 		System.out.println("This is a demo of the expirable bin module for Java");
 		try {
-			System.out.println("Connecting to server...");
+			System.out.println("Connecting to Aerospike server...");
 			testClient = new AerospikeClient("127.0.0.1", 3000);
 			System.out.println("Connected!");
 			Policy policy = new WritePolicy();
@@ -222,14 +219,14 @@ public class ExpireBin {
 			System.out.println("Creating expire bins...");
 			Key testKey = new Key("test", "expireBin", "eb");
 
-			System.out.println(eb.put(policy, testKey, "TestBin1", Value.get("Hello World"), -1) == 0 ? "TestBin 1 inserted." : "TestBin 1 not inserted");
-			System.out.println(eb.put(policy, testKey, "TestBin2", Value.get("I don't expire"), -1) == 0 ? "TestBin 2 inserted" : "TestBin 2 not inserted");
-			System.out.println(eb.put(policy, testKey, "TestBin3", Value.get("I will expire soon"), 5) == 0 ? "TestBin 3 inserted" : "TestBin 3 not inserted");
+			System.out.println(eb.put(policy, testKey, "TestBin1", Value.get("Hello World."), -1) == 0 ? "TestBin 1 inserted." : "TestBin 1 not inserted");
+			System.out.println(eb.put(policy, testKey, "TestBin2", Value.get("I don't expire."), -1) == 0 ? "TestBin 2 inserted" : "TestBin 2 not inserted");
+			System.out.println(eb.put(policy, testKey, "TestBin3", Value.get("I will expire soon."), 5) == 0 ? "TestBin 3 inserted" : "TestBin 3 not inserted");
 			System.out.println(eb.puts(policy, testKey, createBinMap("TestBin4", Value.get("Good Morning."), 100), 
 					createBinMap("TestBin5", Value.get("Good Night."), 0)) == 0 ? "TestBin 4 & 5 inserted" : "TestBin 4 & 5 not inserted");
 			
 			System.out.println("Getting expire bins...");
-			System.out.println("TestBins : " + eb.get(policy, testKey, "TestBin1", "TestBin2", "TestBin3", "TestBin4", "TestBin5"));
+			System.out.println("TestBins: " + eb.get(policy, testKey, "TestBin1", "TestBin2", "TestBin3", "TestBin4", "TestBin5"));
 			
 			System.out.println("Getting bin TTLs...");
 			System.out.println("TestBin 1 TTL: " + eb.ttl(policy, testKey, "TestBin1"));
@@ -239,7 +236,6 @@ public class ExpireBin {
 			System.out.println("TestBin 5 TTL: " + eb.ttl(policy, testKey, "TestBin5"));
 			
 			System.out.println("Waiting for TestBin 3 to expire...");
-
 			try {
 				TimeUnit.SECONDS.sleep(10);
 			} catch(InterruptedException ex) {
@@ -247,7 +243,7 @@ public class ExpireBin {
 			}
 
 			System.out.println("Getting expire bins again...");
-			System.out.println("TestBins : " + eb.get(policy, testKey, "TestBin1", "TestBin2", "TestBin3", "TestBin4", "TestBin5"));
+			System.out.println("TestBins: " + eb.get(policy, testKey, "TestBin1", "TestBin2", "TestBin3", "TestBin4", "TestBin5"));
 			
 			System.out.println("Changing expiration times...");
 			eb.touch(policy, testKey, createBinMap("TestBin1", null, 10), createBinMap("TestBin4", null, 5));
@@ -273,11 +269,10 @@ public class ExpireBin {
 					Thread.currentThread().interrupt();
 				}
 			}
-			
 			System.out.println("Scan completed!");
 			
 			System.out.println("Checking expire bins again...");
-			System.out.println("TestBins : " + eb.get(policy, testKey, "TestBin1", "TestBin2", "TestBin3", "TestBin4", "TestBin5"));
+			System.out.println("TestBins: " + eb.get(policy, testKey, "TestBin1", "TestBin2", "TestBin3", "TestBin4", "TestBin5"));
 		} catch (AerospikeException e) {
 			e.printStackTrace();
 			System.exit(1);
