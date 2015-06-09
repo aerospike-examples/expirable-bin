@@ -1,16 +1,19 @@
-//Copyright 2014 Aerospike, Inc
-//
-//   Licensed under the Apache License, Version 2.0 (the "License");
-//   you may not use this file except in compliance with the License.
-//   You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-//   Unless required by applicable law or agreed to in writing, software
-//   distributed under the License is distributed on an "AS IS" BASIS,
-//   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//   See the License for the specific language governing permissions and
-//   limitations under the License.
+/*
+ * Copyright 2012-2015 Aerospike, Inc.
+ *
+ * Portions may be licensed to Aerospike, Inc. under one or more contributor
+ * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 
 import java.util.HashMap;
 import java.util.Map;
@@ -41,7 +44,7 @@ public class ExpireBin {
 	private static final String BIN_VALUE_FIELD = "val";
 	private static final String BIN_TTL_FIELD   = "bin_ttl";
 	
-	public AerospikeClient client;
+	private static AerospikeClient client;
 
 	/**
 	 * Initialize ExpireBin object with suitable client and policy.
@@ -49,7 +52,7 @@ public class ExpireBin {
 	 * @param client - Client to perform operations on.
 	 */
 	public ExpireBin(AerospikeClient client) {
-		this.client = client;
+		ExpireBin.client = client;
 	}
 
 	/**
@@ -59,19 +62,22 @@ public class ExpireBin {
 	 * @param key    - Key to get from.
 	 * @param bins   - List of bin names to attempt to get from.
 	 * @return       - Record containing respective values for bins that haven't
-	 * 		   		   expired/exist. The gen and exp numbers on the Record are not valid.
+	 * 		   		   expired/exist. The 'gen' and 'exp' numbers on the Record are not valid.
 	 * @throws       - AerospikeException.
 	 */
 	public Object get(Policy policy, Key key, String ... bins) throws AerospikeException {
 		Value[] valueBins = new Value[bins.length];
 		int count = 0;
+		
 		for (String bin : bins) {
 			valueBins[count] = Value.get(bin);
 			count++;
 		}
+		
 		Object returnVal = client.execute(policy, key, MODULE_NAME, GET_OP, valueBins);
+		
 		if (returnVal instanceof Map) {
-			Map returnMap = (Map) returnVal;
+			Map<?, ?> returnMap = (Map<?, ?>) returnVal;
 			HashMap<String, Object> recMap = new HashMap<String, Object>();
 			if (returnMap != null && !returnMap.isEmpty()) {
 				for (String bin : bins) {
@@ -79,13 +85,11 @@ public class ExpireBin {
 						recMap.put(bin, returnMap.get(bin));
 					}
 				}
+				return new Record(recMap, null, 0, 0);
 			}
-			return new Record(recMap, null, 0, 0);
-		} else if (returnVal == null) {
-			return null;
-		}else {
-			throw new AerospikeException("Get operation failed");
 		}
+		
+		return null;
 	}
 
 	/**
@@ -131,11 +135,13 @@ public class ExpireBin {
 	 */
 	public Integer touch(Policy policy, Key key, MapValue ... mapBins) throws AerospikeException {
 		for (Value.MapValue map : mapBins) {
+			@SuppressWarnings("unchecked")
 			Map<String, Object> temp_map = (Map<String, Object>) map.getObject();
 			if (temp_map.get(BIN_TTL_FIELD) == null) {
 				throw new AerospikeException("TTL not specified");
 			}
 		}
+		
 		return (Integer) client.execute(policy, key, MODULE_NAME, TOUCH_OP, (Value[]) mapBins);
 	}
 
@@ -156,6 +162,7 @@ public class ExpireBin {
 			valueBins[count] = Value.get(bin);
 			count++;
 		}
+		
 		return client.execute(policy, statement, MODULE_NAME, CLEAN_OP, valueBins);
 	}
 
@@ -185,25 +192,27 @@ public class ExpireBin {
 		HashMap<String, Object> rm = new HashMap<String, Object>();
 		if (binName != null) {
 			rm.put(BIN_NAME_FIELD, binName);
-		}else {
+		} else {
 			throw new AerospikeException("No bin name specified.");
 		}
+		
 		if (val != null) {
 			rm.put(BIN_VALUE_FIELD, val);
 		}
+		
 		rm.put (BIN_TTL_FIELD, binTTL);
 		return new MapValue(rm);
 	}
 	
-	public static void main(String[] args) {
+	public static void main(String[] args) throws Exception {
 		AerospikeClient testClient = null;
-		System.out.println("This is a demo of the expirable bin module for Java");
+		System.out.println("This is a demo of the expirable bin module for Java:");
 		try {
-			System.out.println("Connecting to Aerospike server...");
+			System.out.println("\nConnecting to Aerospike server...");
 			testClient = new AerospikeClient("127.0.0.1", 3000);
 			System.out.println("Connected!");
 			Policy policy = new WritePolicy();
-			System.out.println("Registering UDF...");
+			System.out.println("\nRegistering UDF...");
 			try {
 				RegisterTask regStatus = testClient.register(policy, "expire_bin.lua", "expire_bin.lua", Language.LUA);
 				if (regStatus.isDone()) {
@@ -216,66 +225,118 @@ public class ExpireBin {
 			}
 			
 			ExpireBin eb = new ExpireBin(testClient);
-			System.out.println("Creating expire bins...");
 			Key testKey = new Key("test", "expireBin", "eb");
 
-			System.out.println(eb.put(policy, testKey, "TestBin1", Value.get("Hello World."), -1) == 0 ? "TestBin 1 inserted." : "TestBin 1 not inserted");
-			System.out.println(eb.put(policy, testKey, "TestBin2", Value.get("I don't expire."), -1) == 0 ? "TestBin 2 inserted" : "TestBin 2 not inserted");
-			System.out.println(eb.put(policy, testKey, "TestBin3", Value.get("I will expire soon."), 5) == 0 ? "TestBin 3 inserted" : "TestBin 3 not inserted");
-			System.out.println(eb.puts(policy, testKey, createBinMap("TestBin4", Value.get("Good Morning."), 100), 
-					createBinMap("TestBin5", Value.get("Good Night."), 0)) == 0 ? "TestBin 4 & 5 inserted" : "TestBin 4 & 5 not inserted");
+			// Example 1: validate the basic bin expiration
+			expExample(policy, testKey, eb);
 			
-			System.out.println("Getting expire bins...");
-			System.out.println("TestBins: " + eb.get(policy, testKey, "TestBin1", "TestBin2", "TestBin3", "TestBin4", "TestBin5"));
+			// Example 2: validate the basic bin expiration after using touch
+			touchExample(policy, testKey, eb);
 			
-			System.out.println("Getting bin TTLs...");
-			System.out.println("TestBin 1 TTL: " + eb.ttl(policy, testKey, "TestBin1"));
-			System.out.println("TestBin 2 TTL: " + eb.ttl(policy, testKey, "TestBin2"));
-			System.out.println("TestBin 3 TTL: " + eb.ttl(policy, testKey, "TestBin3"));
-			System.out.println("TestBin 4 TTL: " + eb.ttl(policy, testKey, "TestBin4"));
-			System.out.println("TestBin 5 TTL: " + eb.ttl(policy, testKey, "TestBin5"));
-			
-			System.out.println("Waiting for TestBin 3 to expire...");
-			try {
-				TimeUnit.SECONDS.sleep(10);
-			} catch(InterruptedException ex) {
-				Thread.currentThread().interrupt();
-			}
-
-			System.out.println("Getting expire bins again...");
-			System.out.println("TestBins: " + eb.get(policy, testKey, "TestBin1", "TestBin2", "TestBin3", "TestBin4", "TestBin5"));
-			
-			System.out.println("Changing expiration times...");
-			eb.touch(policy, testKey, createBinMap("TestBin1", null, 10), createBinMap("TestBin4", null, 5));
-			
-			System.out.println("Getting bin TTLs...");
-			System.out.println("TestBin 1 TTL: " + eb.ttl(policy, testKey, "TestBin1"));
-			System.out.println("TestBin 2 TTL: " + eb.ttl(policy, testKey, "TestBin2"));
-			System.out.println("TestBin 3 TTL: " + eb.ttl(policy, testKey, "TestBin3"));
-			System.out.println("TestBin 4 TTL: " + eb.ttl(policy, testKey, "TestBin4"));
-			System.out.println("TestBin 5 TTL: " + eb.ttl(policy, testKey, "TestBin5"));
-			
-			System.out.println("Cleaning bins...");
-			Statement stmt = new Statement();
-			stmt.setNamespace("test");
-			stmt.setSetName("expireBin");
-			ExecuteTask task = eb.clean(new WritePolicy(), stmt, "TestBin1", "TestBin2", "TestBin3", "TestBin4", "TestBin5");
-			
-			while (!task.isDone()) {
-				System.out.println("Scan in progress...");
-				try {
-					TimeUnit.SECONDS.sleep(5);
-				} catch (InterruptedException ex) {
-					Thread.currentThread().interrupt();
-				}
-			}
-			System.out.println("Scan completed!");
-			
-			System.out.println("Checking expire bins again...");
-			System.out.println("TestBins: " + eb.get(policy, testKey, "TestBin1", "TestBin2", "TestBin3", "TestBin4", "TestBin5"));
+			// Example 3: shows the difference between normal 'get' and 'eb.get'
+			getExample(policy, testKey, eb);
 		} catch (AerospikeException e) {
 			e.printStackTrace();
 			System.exit(1);
+		}
+	}
+	
+	private static void expExample(Policy policy, Key testKey, ExpireBin eb) throws AerospikeException {
+		System.out.println("\nInserting bins...");
+		System.out.println(eb.put(policy, testKey, "TestBin1", Value.get("Hello World."), -1) == 0 ? "TestBin 1 inserted" : "TestBin 1 not inserted");
+		System.out.println(eb.put(policy, testKey, "TestBin2", Value.get("I don't expire."), 8) == 0 ? "TestBin 2 inserted" : "TestBin 2 not inserted");
+		System.out.println(eb.put(policy, testKey, "TestBin3", Value.get("I will expire soon."), 5) == 0 ? "TestBin 3 inserted" : "TestBin 3 not inserted");
+		
+		System.out.println("\nGetting bins...");
+		System.out.println("TestBins: " + eb.get(policy, testKey, "TestBin1", "TestBin2", "TestBin3"));
+		
+		System.out.println("\nGetting bin TTLs...");
+		System.out.println("TestBin 1 TTL: " + eb.ttl(policy, testKey, "TestBin1"));
+		System.out.println("TestBin 2 TTL: " + eb.ttl(policy, testKey, "TestBin2"));
+		System.out.println("TestBin 3 TTL: " + eb.ttl(policy, testKey, "TestBin3"));
+		
+		System.out.println("\nWaiting for TestBin 3 to expire...");
+		try {
+			TimeUnit.SECONDS.sleep(6);
+		} catch(InterruptedException ex) {
+			Thread.currentThread().interrupt();
+		}
+		
+		System.out.println("Getting bins again...");
+		System.out.println("TestBins: " + eb.get(policy, testKey, "TestBin1", "TestBin2", "TestBin3"));
+	}
+	
+	private static void touchExample(Policy policy, Key testKey, ExpireBin eb) throws AerospikeException {
+		System.out.println("\nChanging expiration time for TestBin 1 and TestBin 2...");
+		eb.touch(policy, testKey, createBinMap("TestBin1", null, 3), createBinMap("TestBin2", null, -1));
+		
+		System.out.println("Getting bin TTLs...");
+		System.out.println("TestBin 1 TTL: " + eb.ttl(policy, testKey, "TestBin1"));
+		System.out.println("TestBin 2 TTL: " + eb.ttl(policy, testKey, "TestBin2"));
+		
+		System.out.println("\nWaiting for TestBin 1 to expire...");
+		try {
+			TimeUnit.SECONDS.sleep(4);
+		} catch(InterruptedException ex) {
+			Thread.currentThread().interrupt();
+		}
+		
+		System.out.println("Getting bins again...");
+		System.out.println("TestBins: " + eb.get(policy, testKey, "TestBin1", "TestBin2", "TestBin3"));
+	}
+	
+	private static void getExample(Policy policy, Key testKey, ExpireBin eb) throws Exception {
+		// This illustrates the use of puts
+		System.out.println("\nInserting bins...");
+		System.out.println(eb.puts(policy, testKey, 
+				createBinMap("TestBin4", Value.get("Good Morning."), 5), 
+				createBinMap("TestBin5", Value.get("Good Night."), 5)) == 0 ? "TestBin 4 & 5 inserted" : "TestBin 4 & 5 not inserted");
+
+		System.out.println("\nSleeping for 6 seconds (TestBin 4 and TestBin 5 will expire)...");
+		Thread.sleep(6 * 1000);
+		
+		// Read the record using 'eb.get' after it expires, showing it's gone
+		System.out.println("Getting TestBin 4 and Testbin 5 using 'eb interface'...");
+		System.out.println("TestBins: " + eb.get(policy, testKey, "TestBin4"));
+		
+		// Read the record using normal 'get' after it expires, showing it's not gone
+		System.out.println("Getting TestBin 4 and TestBin 5 using 'normal get'...");
+		Record record;
+		record = client.get(policy, testKey, "TestBin4", "TestBin5");
+		if (record == null) {
+			System.out.println("Record not found");
+		} else {
+			System.out.println(record.toString());
+		}
+		
+		System.out.println("\nCleaning bins...");
+		Statement stmt = new Statement();
+		stmt.setNamespace("test");
+		stmt.setSetName("expireBin");
+		ExecuteTask task = eb.clean(policy, stmt, "TestBin1", "TestBin2", "TestBin3", "TestBin4", "TestBin5");
+		
+		while (!task.isDone()) {
+			System.out.println("Scan in progress...");
+			try {
+				TimeUnit.SECONDS.sleep(5);
+			} catch (InterruptedException ex) {
+				Thread.currentThread().interrupt();
+			}
+		}
+		
+		System.out.println("Scan completed!");
+		
+		System.out.println("\nChecking expire bins again using 'eb interface'...");
+		System.out.println("TestBins: " + eb.get(policy, testKey, "TestBin1", "TestBin2", "TestBin3", "TestBin4", "TestBin5"));
+		
+		System.out.println("\nChecking expire bins again using 'normal get'...");
+		record = client.get(policy, testKey, "TestBin1", "TestBin2", "TestBin3", "TestBin4", "TestBin5");
+		
+		if (record != null) {
+			System.out.println(record.toString());
+		}
+		else {		
+			System.out.println("Record not found");
 		}
 	}
 }
