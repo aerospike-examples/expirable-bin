@@ -19,9 +19,9 @@ can be checked, stored, and updated.
 The scan function provides an off-the-shelf routine to reclaim space. Execute this batch
 job occasionally to reclaim space, through Aerospike's UDF Scan functionality.
 
-The module provides:
-record.put - insert bins with optional time-to-live.
-record.get - return bins that are not expired.
+The module provides:  
+record.put - insert bins with optional time-to-live in seconds, -1 for no expiration.  
+record.get - return bins that are not expired.  
 scan - scan the database, rewrite records which expired bins.
 
 Client interface is available for Java, C, Python, and Lua
@@ -45,22 +45,35 @@ This module can be used from client calls or within other UDFs. For examples of 
 calls, see the C and Java examples under ```src/c``` and ```src/java```. Please ensure
 that the expire_bin.lua file is registered to the server before running the examples.
 
-To run the java example,
+###C 
+The C code depends on the Aerospike C library, you can either download the demo package from the Aerospike [website](http://www.aerospike.com/docs/client/c/) or you can go to [GitHub](https://github.com/aerospike/aerospike-client-c) to install and follow the instructions.
+
+To run the C example: 
 ```
-	mvn install
-	java -jar target/ExpireBin-1.0-jar-with-dependencies.jar
+make run 
 ```
-The java example class can also be used as a library. It provides method wrappers for
+For simplicity, the Makefile assumes Lua is the default one that is included in ```aerospike.a``` library, if you want to have a different kind of Lua included please go see Aerospike [C Client](https://docs.aerospike.com/display/V3/C+Client+Guide).
+
+###Java
+The Java code depends on the Aerospike Java library, you can either download the demo package from the Aerospike [website](http://www.aerospike.com/docs/client/java/) or you can go to [GitHub](https://github.com/aerospike/aerospike-client-java) to install and follow the instructions. 
+
+To run the Java example:
+```
+mvn install
+java -jar target/ExpireBin-1.0-jar-with-dependencies.jar
+```
+The Java example class can also be used as a library. It provides method wrappers for
 the underlying UDF apply calls. 
 
+###UDF
 For usage within UDFs, import the module as follows:
 ```
-	local exp_bin = require('expire_bin');
-	exp_bin.get(rec, bin);
-	exp_bin.put(rec, bin, val, bin_ttl, exp_create);
-	exp_bin.puts(rec, map {bin = "bin_name", val = 12, bin_ttl = 100});
-	exp_bin.touch(rec, map {bin = "bin_name", bin_ttl = 10});
-	exp_bin.clean(rec, bin);
+local exp_bin = require('expire_bin');
+exp_bin.get(rec, bin);
+exp_bin.put(rec, bin, val, bin_ttl, exp_create);
+exp_bin.puts(rec, map {bin = "bin_name", val = 12, bin_ttl = 100});
+exp_bin.touch(rec, map {bin = "bin_name", bin_ttl = 10});
+exp_bin.clean(rec, bin);
 ```
 
 ## Implementation
