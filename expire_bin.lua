@@ -1,4 +1,4 @@
--- Copyright 2014 Aerospike, Inc.
+-- Copyright 2015 Aerospike, Inc.
 
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 -- =========================================================================
 -- UDF Bin Expiration Module
 -- =========================================================================
-
+-- 
 -- This module provides basic functionality for bin level data expiration 
 -- for the Aerospike database. This module uses special UDF bins that are 
 -- specific to this module and the bin expiration functionality will not be 
@@ -165,7 +165,7 @@ end
 -- =========================================================================
 -- put(): Store bin to record
 -- =========================================================================
---
+-- 
 -- USAGE: as.execute(policy, key, "expire_bin", "put", bin, val, bin_ttl, create);
 --
 -- Params:
@@ -194,7 +194,7 @@ function put(rec, bin, val, bin_ttl)
 		rec[bin] = val;
 		return push_rec(rec);
 	else
-		local map_bin = bin;
+		local map_bin = rec[tostring(bin)];
 		if (not is_expbin(map_bin)) then
 			if (exp_create) then
 				map_bin = map();
