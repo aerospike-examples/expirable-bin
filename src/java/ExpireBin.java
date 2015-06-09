@@ -227,10 +227,10 @@ public class ExpireBin {
 			ExpireBin eb = new ExpireBin(testClient);
 			Key testKey = new Key("test", "expireBin", "eb");
 
-			// Example 1: validate the basic bin expiration
+			// Example 1: validates the basic bin expiration
 			expExample(policy, testKey, eb);
 			
-			// Example 2: validate the basic bin expiration after using touch
+			// Example 2: validates the basic bin expiration after using 'touch'
 			touchExample(policy, testKey, eb);
 			
 			// Example 3: shows the difference between normal 'get' and 'eb.get'
@@ -299,7 +299,7 @@ public class ExpireBin {
 		System.out.println("Getting TestBin 4 and Testbin 5 using 'eb interface'...");
 		System.out.println("TestBins: " + eb.get(policy, testKey, "TestBin4"));
 		
-		// Read the record using normal 'get' after it expires, showing it's not gone
+		// Read the record using normal 'get' after it expires, showing it's persistent
 		System.out.println("Getting TestBin 4 and TestBin 5 using 'normal get'...");
 		Record record;
 		record = client.get(policy, testKey, "TestBin4", "TestBin5");
