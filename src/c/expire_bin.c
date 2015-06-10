@@ -1,20 +1,27 @@
-/*
- * Copyright 2014 Aerospike, Inc
+/*******************************************************************************
+ * Copyright 2008-2015 by Aerospike.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to
+ * deal in the Software without restriction, including without limitation the
+ * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+ * sell copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ ******************************************************************************/
 
- //==========================================================
+
+//==========================================================
 // Includes
 //
 
@@ -26,7 +33,8 @@
 #include <aerospike/aerospike_udf.h>
 #include <aerospike/as_hashmap.h>
 #include <aerospike/as_stringmap.h>
-#include <aerospike/aerospike_scan.h>
+#include <aerospike/as_record_iterator.h>
+
 
 //==========================================================
 // Constants
@@ -40,12 +48,23 @@ const char UDF_FILE_PATH[] = UDF_USER_PATH UDF_MODULE ".lua";
 
 // Namespace, Set, and Key	
 const char DEFAULT_NAMESPACE[] = "test";
-const char DEFAULT_SET[] = "expireBin";
-const char DEFAULT_KEY_STR[] = "testKey";
+const char DEFAULT_SET[]       = "expireBin";
+const char DEFAULT_KEY_STR[]   = "testKey";
+
 // Based on current server limit
 char eb_namespace[32]; 
 char eb_set[64];
 char eb_key_str[1024];
+
+aerospike as;
+as_key testKey;
+as_config config;
+as_error err;
+as_val* result;
+as_string val;
+as_arraylist arglist;
+as_hashmap map1, map2; 
+
 
 //==========================================================
 // Forward Declarations
@@ -56,33 +75,39 @@ void as_expbin_put(aerospike* as, as_error* err, as_policy_apply* policy, as_key
 void as_expbin_puts(aerospike* as, as_error* err, as_policy_apply* policy, as_key* key, as_list* arglist, as_val* result);
 void as_expbin_touch(aerospike* as, as_error* err, as_policy_apply* policy, as_key* key, as_list* arglist, as_val* result);
 as_val* as_expbin_ttl(aerospike* as, as_error* err, as_policy_apply* policy, as_key* key, char* bin_name, as_val* result);
-void as_expbin_clean(aerospike* as, as_error* err, const as_policy_scan* policy, as_scan* scan, as_list* binlist);
+void as_expbin_clean(aerospike* as, as_error* err, as_policy_scan* policy, as_scan* scan, as_list* binlist);
 as_hashmap create_bin_map(char* bin_name, char* val, int64_t bin_ttl);
+
 bool register_udf(aerospike* p_as, const char* udf_file_path);
 void cleanup(aerospike* as, as_error* err, as_policy_remove* policy, as_key* key);
+void example_dump_record(const as_record* p_rec);
+void example_cleanup(aerospike* p_as);
+void example_remove_test_records(aerospike* p_as);
+void example_remove_test_record(aerospike* p_as);
+
+void exp_example(void);
+void touch_example(void);
+void get_example(void);
+
 
 //==========================================================
-// Expire Bin C Example.
+// Expire Bin C Example
 //  
 
 int
 main(int argc, char* argv[]) 
 {
-	LOG("This is a demo of the expirable bin module for C");
+	LOG("This is a demo of the expirable bin module for C:");
 
 	strcpy(eb_namespace, DEFAULT_NAMESPACE);
 	strcpy(eb_set, DEFAULT_SET);
 	strcpy(eb_key_str, DEFAULT_KEY_STR);
 
-	aerospike as;
-	as_config config;
-	as_error err;
-
 	as_config_init(&config);
 	as_config_add_host(&config, "127.0.0.1", 3000);
 	aerospike_init(&as, &config);
 
-	LOG("Connecting to Aerospike server...");
+	LOG("\nConnecting to Aerospike server...");
 	
 	if (aerospike_connect(&as, &err) != AEROSPIKE_OK) {
 		LOG("error(%d) %s at [%s:%d]", err.code, err.message, err.file, err.line);
@@ -90,18 +115,16 @@ main(int argc, char* argv[])
 	}
 
 	LOG("Connected!");
-
-	as_key testKey;
-
-	// Start clean.
-	aerospike_key_remove(&as, &err, NULL, &testKey);
 	
+	// Start clean.
 	if (as_key_init_str(&testKey, eb_namespace, eb_set, eb_key_str) == NULL) {
 		LOG("Key was not initiated");
 		exit(1);
 	}
+	
+	aerospike_key_remove(&as, &err, NULL, &testKey);
 
-	LOG("Registering UDF...");
+	LOG("\nRegistering UDF...");
 
 	if (! register_udf(&as, UDF_FILE_PATH)) {
 		LOG("Error registering UDF!")
@@ -111,126 +134,16 @@ main(int argc, char* argv[])
 
 	LOG("UDF registered!");
 
-	as_val* result = NULL;
-	as_string val;
-	as_arraylist arglist;
+	LOG("\nInserting expire bins...");
 
-	LOG("Creating expire bins...");
-	
-	as_string_init(&val, "Hello World.", false);
-	as_expbin_put(&as, &err, NULL, &testKey, "TestBin1", (as_val*)&val, -1, result);
+	// Example 1: validates the basic bin expiration.
+	exp_example();
 
-	as_string_init(&val, "I don't expire.", false);
-	as_expbin_put(&as, &err, NULL, &testKey, "TestBin2", (as_val*)&val, -1, result);
+	// Example 2: validates the basic bin expiration after using 'touch'.
+	touch_example();
 
-	as_string_init(&val, "I will expire soon.", false);
-	as_expbin_put(&as, &err, NULL, &testKey, "TestBin3", (as_val*)&val, 5, result);
-
-	as_hashmap map1, map2; 
-	as_arraylist_inita(&arglist, 2);
-
-	map1 = create_bin_map("TestBin4", "Good Morning.", 100); 
-	as_val_reserve((as_map *)&map1);
-	as_arraylist_append(&arglist, (as_val *)((as_map *)&map1));
-
-	map2 = create_bin_map("TestBin5", "Good Night.", 0); 
-	as_val_reserve((as_map *)&map2);
-	as_arraylist_append(&arglist, (as_val *)((as_map *)&map2));
-
-	as_expbin_puts(&as, &err, NULL, &testKey, (as_list*)&arglist, result);
-
-	LOG("Getting expire bins...");
-
-	as_arraylist_inita(&arglist, 5);
-	as_arraylist_append_str(&arglist, "TestBin1");
-	as_arraylist_append_str(&arglist, "TestBin2");
-	as_arraylist_append_str(&arglist, "TestBin3");
-	as_arraylist_append_str(&arglist, "TestBin4");
-	as_arraylist_append_str(&arglist, "TestBin5");
-
-	result = as_expbin_get(&as, &err, NULL, &testKey, (as_list*)&arglist, result);
-	LOG("TestBins: %s", as_val_tostring(result));
-
-	LOG("Getting bin TTLs...");
-	result = as_expbin_ttl(&as, &err, NULL, &testKey, "TestBin1", result); 
-	LOG("TestBin 1 TTL: %s", as_val_tostring(result));
-	result = as_expbin_ttl(&as, &err, NULL, &testKey, "TestBin2", result); 
-	LOG("TestBin 2 TTL: %s", as_val_tostring(result));
-	result = as_expbin_ttl(&as, &err, NULL, &testKey, "TestBin3", result); 
-	LOG("TestBin 3 TTL: %s", as_val_tostring(result));
-	result = as_expbin_ttl(&as, &err, NULL, &testKey, "TestBin4", result); 
-	LOG("TestBin 4 TTL: %s", as_val_tostring(result));
-	result = as_expbin_ttl(&as, &err, NULL, &testKey, "TestBin5", result); 
-	LOG("TestBin 5 TTL: %s", as_val_tostring(result));
-
-	LOG("Waiting for TestBin 3 to expire...");
-
-	sleep(10);
-
-	LOG("Getting expire bins again...");
-
-	as_arraylist_inita(&arglist, 5);
-	as_arraylist_append_str(&arglist, "TestBin1");
-	as_arraylist_append_str(&arglist, "TestBin2");
-	as_arraylist_append_str(&arglist, "TestBin3");
-	as_arraylist_append_str(&arglist, "TestBin4");
-	as_arraylist_append_str(&arglist, "TestBin5");
-
-	result = as_expbin_get(&as, &err, NULL, &testKey, (as_list*)&arglist, result);
-	LOG("TestBins: %s", as_val_tostring(result));
-
-	LOG("Changing expiration times...");
-
-	as_arraylist_inita(&arglist, 2);
-
-	map1 = create_bin_map("TestBin1", "Hello World.", 10); 
-	as_val_reserve((as_map *)&map1);
-	as_arraylist_append(&arglist, (as_val *)((as_map *)&map1));
-
-	map2 = create_bin_map("TestBin4", "Good Morning.", 5); 
-	as_val_reserve((as_map *)&map2);
-	as_arraylist_append(&arglist, (as_val *)((as_map *)&map2));
-
-	as_expbin_touch(&as, &err, NULL, &testKey, (as_list*)&arglist, result);
-
-	LOG("Getting bin TTLs...");
-	result = as_expbin_ttl(&as, &err, NULL, &testKey, "TestBin1", result); 
-	LOG("TestBin 1 TTL: %s", as_val_tostring(result));
-	result = as_expbin_ttl(&as, &err, NULL, &testKey, "TestBin2", result); 
-	LOG("TestBin 2 TTL: %s", as_val_tostring(result));
-	result = as_expbin_ttl(&as, &err, NULL, &testKey, "TestBin3", result); 
-	LOG("TestBin 3 TTL: %s", as_val_tostring(result));
-	result = as_expbin_ttl(&as, &err, NULL, &testKey, "TestBin4", result); 
-	LOG("TestBin 4 TTL: %s", as_val_tostring(result));
-	result = as_expbin_ttl(&as, &err, NULL, &testKey, "TestBin5", result); 
-	LOG("TestBin 5 TTL: %s", as_val_tostring(result));
-
-	LOG("Cleaning bins...");
-
-	as_scan scan;
-
-	as_arraylist_inita(&arglist, 5);
-	as_arraylist_append_str(&arglist, "TestBin1");
-	as_arraylist_append_str(&arglist, "TestBin2");
-	as_arraylist_append_str(&arglist, "TestBin3");
-	as_arraylist_append_str(&arglist, "TestBin4");
-	as_arraylist_append_str(&arglist, "TestBin5");
-
-	LOG("Scan in progress...");
-	as_expbin_clean(&as, &err, NULL, &scan, (as_list*) &arglist);
-	LOG("Scan completed!");
-
-	LOG("Checking expire bins again...");
-
-	as_arraylist_inita(&arglist, 5);
-	as_arraylist_append_str(&arglist, "TestBin1");
-	as_arraylist_append_str(&arglist, "TestBin2");
-	as_arraylist_append_str(&arglist, "TestBin3");
-	as_arraylist_append_str(&arglist, "TestBin4");
-	as_arraylist_append_str(&arglist, "TestBin5");
-
-	result = as_expbin_get(&as, &err, NULL, &testKey, (as_list*) &arglist, result);
-	LOG("TestBins: %s", as_val_tostring(result));
+	// Example 3: shows the difference between normal 'get' and 'eb.get'.
+	get_example();
 
 	aerospike_close(&as, &err);
 	aerospike_destroy(&as);
@@ -380,7 +293,7 @@ as_expbin_ttl(aerospike* as, as_error* err, as_policy_apply* policy, as_key* key
  * \return        - void if successful, an error otherwise.
  */
 void
-as_expbin_clean(aerospike* as, as_error* err, const as_policy_scan* policy, as_scan* scan, as_list* binlist)
+as_expbin_clean(aerospike* as, as_error* err, as_policy_scan* policy, as_scan* scan, as_list* binlist)
 {
 	uint64_t scan_id = 0;
 	as_scan_init(scan, eb_namespace, eb_set);
@@ -500,4 +413,264 @@ cleanup(aerospike* as, as_error* err, as_policy_remove* policy, as_key* testKey)
 	// Disconnect from the database cluster and clean up the aerospike object.
 	aerospike_close(as, err);
 	aerospike_destroy(as);
+}
+
+static void
+example_dump_bin(const as_bin* p_bin)
+{
+	if (! p_bin) {
+		LOG("  null as_bin object");
+		return;
+	}
+
+	char* val_as_str = as_val_tostring(as_bin_get_value(p_bin));
+
+	LOG("  %s: %s", as_bin_get_name(p_bin), val_as_str);
+
+	free(val_as_str);
+}
+
+void
+example_dump_record(const as_record* p_rec)
+{
+	if (! p_rec) {
+		LOG("  null as_record object");
+		return;
+	}
+
+	if (p_rec->key.valuep) {
+		char* key_val_as_str = as_val_tostring(p_rec->key.valuep);
+		free(key_val_as_str);
+	}
+
+	as_record_iterator it;
+	as_record_iterator_init(&it, p_rec);
+
+	while (as_record_iterator_has_next(&it)) {
+		example_dump_bin(as_record_iterator_next(&it));
+	}
+
+	as_record_iterator_destroy(&it);
+}
+
+//------------------------------------------------
+// Remove the test record from database, and
+// disconnect from cluster.
+//
+void
+example_cleanup(aerospike* p_as)
+{
+	// Clean up the database. Note that with database "storage-engine device"
+	// configurations, this record may come back to life if the server is re-
+	// started. That's why examples that want to start clean remove the test
+	// record at the beginning.
+	example_remove_test_record(p_as);
+
+	// Note also example_remove_test_records() is not called here - examples
+	// using multiple records call that from their own cleanup utilities.
+
+	as_error err;
+
+	// Disconnect from the database cluster and clean up the aerospike object.
+	aerospike_close(p_as, &err);
+	aerospike_destroy(p_as);
+}
+
+//------------------------------------------------
+// Remove the test record from the database.
+//
+void
+example_remove_test_record(aerospike* p_as)
+{
+	as_error err;
+
+	// Try to remove the test record from the database. If the example has not
+	// inserted the record, or it has already been removed, this call will
+	// return as_status AEROSPIKE_ERR_RECORD_NOT_FOUND - which we just ignore.
+	aerospike_key_remove(p_as, &err, NULL, &testKey);
+}
+
+//------------------------------------------------
+// Remove multiple-record examples' test records
+// from the database.
+//
+void
+example_remove_test_records(aerospike* p_as)
+{
+	as_error err;
+
+	if (as_key_init_str(&testKey, eb_namespace, eb_set, eb_key_str) == NULL) {
+		LOG("Key was not initiated");
+		exit(1);
+	}
+
+	aerospike_key_remove(p_as, &err, NULL, &testKey);
+}
+
+void 
+exp_example(void) {
+	as_string_init(&val, "Hello World.", false);
+	as_expbin_put(&as, &err, NULL, &testKey, "TestBin1", (as_val*)&val, -1, result);
+	LOG("TestBin 1 inserted");
+	
+	as_string_init(&val, "I don't expire.", false);
+	as_expbin_put(&as, &err, NULL, &testKey, "TestBin2", (as_val*)&val, 8, result);
+	LOG("TestBin 2 inserted");
+
+	as_string_init(&val, "I will expire soon.", false);
+	as_expbin_put(&as, &err, NULL, &testKey, "TestBin3", (as_val*)&val, 5, result);
+	LOG("TestBin 3 inserted");
+
+	LOG("Getting expire bins...");
+	as_arraylist_inita(&arglist, 5);
+	as_arraylist_append_str(&arglist, "TestBin1");
+	as_arraylist_append_str(&arglist, "TestBin2");
+	as_arraylist_append_str(&arglist, "TestBin3");
+
+	result = as_expbin_get(&as, &err, NULL, &testKey, (as_list*)&arglist, result);
+	LOG("%s", as_val_tostring(result));
+
+	LOG("Getting bin TTLs...");
+	result = as_expbin_ttl(&as, &err, NULL, &testKey, "TestBin1", result); 
+	LOG("TestBin 1 TTL: %s", as_val_tostring(result));
+	result = as_expbin_ttl(&as, &err, NULL, &testKey, "TestBin2", result); 
+	LOG("TestBin 2 TTL: %s", as_val_tostring(result));
+	result = as_expbin_ttl(&as, &err, NULL, &testKey, "TestBin3", result); 
+	LOG("TestBin 3 TTL: %s", as_val_tostring(result));
+
+	LOG("Waiting for TestBin 3 to expire...");
+	sleep(6);
+
+	LOG("Getting expire bins again...");
+	as_arraylist_inita(&arglist, 3);
+	as_arraylist_append_str(&arglist, "TestBin1");
+	as_arraylist_append_str(&arglist, "TestBin2");
+	as_arraylist_append_str(&arglist, "TestBin3");
+
+	result = as_expbin_get(&as, &err, NULL, &testKey, (as_list*)&arglist, result);
+	LOG("%s", as_val_tostring(result));
+}
+
+void
+touch_example(void) {
+	LOG("\nChanging expiration time for TestBin 1 and TestBin 2...");
+
+	as_arraylist_inita(&arglist, 2);
+
+	map1 = create_bin_map("TestBin1", "Hello World.", 3); 
+	as_val_reserve((as_map *)&map1);
+	as_arraylist_append(&arglist, (as_val *)((as_map *)&map1));
+
+	map2 = create_bin_map("TestBin2", "I don't expire.", -1); 
+	as_val_reserve((as_map *)&map2);
+	as_arraylist_append(&arglist, (as_val *)((as_map *)&map2));
+
+	as_expbin_touch(&as, &err, NULL, &testKey, (as_list*)&arglist, result);
+
+	LOG("Getting bin TTLs...");
+	result = as_expbin_ttl(&as, &err, NULL, &testKey, "TestBin1", result); 
+	LOG("TestBin 1 TTL: %s", as_val_tostring(result));
+	result = as_expbin_ttl(&as, &err, NULL, &testKey, "TestBin2", result); 
+	LOG("TestBin 2 TTL: %s", as_val_tostring(result));
+
+	LOG("Waiting for TestBin 1 to expire...");
+	sleep(4);
+
+	LOG("Getting expire bins again...");
+	as_arraylist_inita(&arglist, 3);
+	as_arraylist_append_str(&arglist, "TestBin1");
+	as_arraylist_append_str(&arglist, "TestBin2");
+	as_arraylist_append_str(&arglist, "TestBin3");
+
+	result = as_expbin_get(&as, &err, NULL, &testKey, (as_list*)&arglist, result);
+	LOG("%s", as_val_tostring(result));
+}
+
+void
+get_example(void) {
+	LOG("\nInserting expire bins...");
+	as_arraylist_inita(&arglist, 2);
+
+	map1 = create_bin_map("TestBin4", "Good Morning.", 5); 
+	as_val_reserve((as_map *)&map1);
+	as_arraylist_append(&arglist, (as_val *)((as_map *)&map1));
+
+	map2 = create_bin_map("TestBin5", "Good Night.", 5); 
+	as_val_reserve((as_map *)&map2);
+	as_arraylist_append(&arglist, (as_val *)((as_map *)&map2));
+
+	as_expbin_puts(&as, &err, NULL, &testKey, (as_list*)&arglist, result);
+	LOG("TestBin 4 & 5 inserted");
+
+	LOG("Sleeping for 6 seconds (TestBin 4 & 5 will expire)...");
+	sleep(6);
+
+	// Read the record using 'eb.get' after it expires, showing it's gone
+	LOG("Getting TestBin 4 & 5 using 'eb interface'...");
+	as_arraylist_inita(&arglist, 2);
+	as_arraylist_append_str(&arglist, "TestBin4");
+	as_arraylist_append_str(&arglist, "TestBin5");
+
+	result = as_expbin_get(&as, &err, NULL, &testKey, (as_list*)&arglist, result);
+	LOG("%s", as_val_tostring(result));
+		
+	// Read the record using normal 'get' after it expires, showing it's persistent
+	LOG("Getting TestBin 4 & 5 using 'normal get'...");
+
+	// Select bins 4 and 5 to read.
+	const char* two_bins[] = {"TestBin4", "TestBin5", NULL};
+
+	as_record* p_rec = NULL;
+
+	// Read only these two bins of the test record from the database.
+	if (aerospike_key_select(&as, &err, NULL, &testKey, two_bins, &p_rec) != AEROSPIKE_OK) {
+		LOG("aerospike_key_select() returned %d - %s", err.code, err.message);
+		example_cleanup(&as);
+		exit(-1);
+	}
+
+	// Log the result and recycle the as_record object.
+	example_dump_record(p_rec);
+	as_record_destroy(p_rec);
+	p_rec = NULL;
+
+	LOG("Cleaning bins...");
+	as_arraylist_inita(&arglist, 5);
+	as_arraylist_append_str(&arglist, "TestBin1");
+	as_arraylist_append_str(&arglist, "TestBin2");
+	as_arraylist_append_str(&arglist, "TestBin3");
+	as_arraylist_append_str(&arglist, "TestBin4");
+	as_arraylist_append_str(&arglist, "TestBin5");
+
+	as_scan scan;
+	LOG("Scan in progress...");
+	as_expbin_clean(&as, &err, NULL, &scan, (as_list*) &arglist);
+	LOG("Scan completed!");
+
+	LOG("Checking expire bins again using 'eb interface'...");
+	as_arraylist_inita(&arglist, 5);
+	as_arraylist_append_str(&arglist, "TestBin1");
+	as_arraylist_append_str(&arglist, "TestBin2");
+	as_arraylist_append_str(&arglist, "TestBin3");
+	as_arraylist_append_str(&arglist, "TestBin4");
+	as_arraylist_append_str(&arglist, "TestBin5");
+
+	result = as_expbin_get(&as, &err, NULL, &testKey, (as_list*) &arglist, result);
+	LOG("%s", as_val_tostring(result));
+
+	LOG("Checking expire bins again using 'normal get'...");
+	// Select all previously created bins to read.
+	const char* all_bins[] = {"TestBin1", "TestBin2", "TestBin3", "TestBin4", "TestBin5", NULL};
+
+	// Read all these bins of the test record from the database.
+	if (aerospike_key_select(&as, &err, NULL, &testKey, all_bins, &p_rec) != AEROSPIKE_OK) {
+		LOG("aerospike_key_select() returned %d - %s", err.code, err.message);
+		example_cleanup(&as);
+		exit(-1);
+	}
+
+	// Log the result and recycle the as_record object.
+	example_dump_record(p_rec);
+	as_record_destroy(p_rec);
+	p_rec = NULL;
 }
