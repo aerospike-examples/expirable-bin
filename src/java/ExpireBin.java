@@ -227,13 +227,13 @@ public class ExpireBin {
 			ExpireBin eb = new ExpireBin(testClient);
 			Key testKey = new Key("test", "expireBin", "eb");
 
-			// Example 1: validates the basic bin expiration
+			// Example 1: validates the basic bin expiration.
 			expExample(policy, testKey, eb);
 			
-			// Example 2: validates the basic bin expiration after using 'touch'
+			// Example 2: validates the basic bin expiration after using 'touch'.
 			touchExample(policy, testKey, eb);
 			
-			// Example 3: shows the difference between normal 'get' and 'eb.get'
+			// Example 3: shows the difference between normal 'get' and 'eb.get'.
 			getExample(policy, testKey, eb);
 		} catch (AerospikeException e) {
 			e.printStackTrace();
@@ -247,15 +247,15 @@ public class ExpireBin {
 		System.out.println(eb.put(policy, testKey, "TestBin2", Value.get("I don't expire."), 8) == 0 ? "TestBin 2 inserted" : "TestBin 2 not inserted");
 		System.out.println(eb.put(policy, testKey, "TestBin3", Value.get("I will expire soon."), 5) == 0 ? "TestBin 3 inserted" : "TestBin 3 not inserted");
 		
-		System.out.println("\nGetting bins...");
-		System.out.println("TestBins: " + eb.get(policy, testKey, "TestBin1", "TestBin2", "TestBin3"));
+		System.out.println("Getting bins...");
+		System.out.println(eb.get(policy, testKey, "TestBin1", "TestBin2", "TestBin3"));
 		
-		System.out.println("\nGetting bin TTLs...");
+		System.out.println("Getting bins TTL...");
 		System.out.println("TestBin 1 TTL: " + eb.ttl(policy, testKey, "TestBin1"));
 		System.out.println("TestBin 2 TTL: " + eb.ttl(policy, testKey, "TestBin2"));
 		System.out.println("TestBin 3 TTL: " + eb.ttl(policy, testKey, "TestBin3"));
 		
-		System.out.println("\nWaiting for TestBin 3 to expire...");
+		System.out.println("Waiting for TestBin 3 to expire...");
 		try {
 			TimeUnit.SECONDS.sleep(6);
 		} catch(InterruptedException ex) {
@@ -263,18 +263,18 @@ public class ExpireBin {
 		}
 		
 		System.out.println("Getting bins again...");
-		System.out.println("TestBins: " + eb.get(policy, testKey, "TestBin1", "TestBin2", "TestBin3"));
+		System.out.println(eb.get(policy, testKey, "TestBin1", "TestBin2", "TestBin3"));
 	}
 	
 	private static void touchExample(Policy policy, Key testKey, ExpireBin eb) throws AerospikeException {
 		System.out.println("\nChanging expiration time for TestBin 1 and TestBin 2...");
 		eb.touch(policy, testKey, createBinMap("TestBin1", null, 3), createBinMap("TestBin2", null, -1));
 		
-		System.out.println("Getting bin TTLs...");
+		System.out.println("Getting bins TTL...");
 		System.out.println("TestBin 1 TTL: " + eb.ttl(policy, testKey, "TestBin1"));
 		System.out.println("TestBin 2 TTL: " + eb.ttl(policy, testKey, "TestBin2"));
 		
-		System.out.println("\nWaiting for TestBin 1 to expire...");
+		System.out.println("Waiting for TestBin 1 to expire...");
 		try {
 			TimeUnit.SECONDS.sleep(4);
 		} catch(InterruptedException ex) {
@@ -282,24 +282,24 @@ public class ExpireBin {
 		}
 		
 		System.out.println("Getting bins again...");
-		System.out.println("TestBins: " + eb.get(policy, testKey, "TestBin1", "TestBin2", "TestBin3"));
+		System.out.println(eb.get(policy, testKey, "TestBin1", "TestBin2", "TestBin3"));
 	}
 	
 	private static void getExample(Policy policy, Key testKey, ExpireBin eb) throws Exception {
-		// This illustrates the use of puts
+		// This illustrates the use of 'puts'.
 		System.out.println("\nInserting bins...");
 		System.out.println(eb.puts(policy, testKey, 
 				createBinMap("TestBin4", Value.get("Good Morning."), 5), 
 				createBinMap("TestBin5", Value.get("Good Night."), 5)) == 0 ? "TestBin 4 & 5 inserted" : "TestBin 4 & 5 not inserted");
 
-		System.out.println("\nSleeping for 6 seconds (TestBin 4 and TestBin 5 will expire)...");
+		System.out.println("Sleeping for 6 seconds (TestBin 4 and TestBin 5 will expire)...");
 		Thread.sleep(6 * 1000);
 		
-		// Read the record using 'eb.get' after it expires, showing it's gone
+		// Read the record using 'eb.get' after it expires, showing it's gone.
 		System.out.println("Getting TestBin 4 and Testbin 5 using 'eb interface'...");
-		System.out.println("TestBins: " + eb.get(policy, testKey, "TestBin4"));
+		System.out.println(eb.get(policy, testKey, "TestBin4", "TestBin5"));
 		
-		// Read the record using normal 'get' after it expires, showing it's persistent
+		// Read the record using normal 'get' after it expires, showing it's persistent.
 		System.out.println("Getting TestBin 4 and TestBin 5 using 'normal get'...");
 		Record record;
 		record = client.get(policy, testKey, "TestBin4", "TestBin5");
@@ -309,7 +309,7 @@ public class ExpireBin {
 			System.out.println(record.toString());
 		}
 		
-		System.out.println("\nCleaning bins...");
+		System.out.println("Cleaning bins...");
 		Statement stmt = new Statement();
 		stmt.setNamespace("test");
 		stmt.setSetName("expireBin");
@@ -326,10 +326,10 @@ public class ExpireBin {
 		
 		System.out.println("Scan completed!");
 		
-		System.out.println("\nChecking expire bins again using 'eb interface'...");
-		System.out.println("TestBins: " + eb.get(policy, testKey, "TestBin1", "TestBin2", "TestBin3", "TestBin4", "TestBin5"));
+		System.out.println("Checking expire bins again using 'eb interface'...");
+		System.out.println(eb.get(policy, testKey, "TestBin1", "TestBin2", "TestBin3", "TestBin4", "TestBin5"));
 		
-		System.out.println("\nChecking expire bins again using 'normal get'...");
+		System.out.println("Checking expire bins again using 'normal get'...");
 		record = client.get(policy, testKey, "TestBin1", "TestBin2", "TestBin3", "TestBin4", "TestBin5");
 		
 		if (record != null) {

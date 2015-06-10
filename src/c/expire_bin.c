@@ -134,8 +134,6 @@ main(int argc, char* argv[])
 
 	LOG("UDF registered!");
 
-	LOG("\nInserting expire bins...");
-
 	// Example 1: validates the basic bin expiration.
 	exp_example();
 
@@ -173,6 +171,7 @@ as_expbin_get(aerospike* as, as_error* err, as_policy_apply* policy, as_key* key
 		LOG("as_expbin_get() returned %d - %s", err->code, err->message);
 		exit(1);
 	}
+
 	return result;
 }
 
@@ -279,6 +278,7 @@ as_expbin_ttl(aerospike* as, as_error* err, as_policy_apply* policy, as_key* key
 		LOG("as_expbin_ttl() returned %d - %s", err->code, err->message);
 		exit(1);	
 	}
+
 	return result;
 }
 
@@ -337,7 +337,6 @@ create_bin_map(char* bin_name, char* val, int64_t bin_ttl)
 //
 
 // Register a UDF function in the database.
-
 bool
 register_udf(aerospike* p_as, const char* udf_file_path)
 {
@@ -398,7 +397,6 @@ register_udf(aerospike* p_as, const char* udf_file_path)
 }
 
 // Remove the record from database, and disconnect from cluster.
-
 void
 cleanup(aerospike* as, as_error* err, as_policy_remove* policy, as_key* testKey)
 {
@@ -509,6 +507,7 @@ example_remove_test_records(aerospike* p_as)
 
 void 
 exp_example(void) {
+	LOG("\nInserting expire bins...");
 	as_string_init(&val, "Hello World.", false);
 	as_expbin_put(&as, &err, NULL, &testKey, "TestBin1", (as_val*)&val, -1, result);
 	LOG("TestBin 1 inserted");
@@ -530,7 +529,7 @@ exp_example(void) {
 	result = as_expbin_get(&as, &err, NULL, &testKey, (as_list*)&arglist, result);
 	LOG("%s", as_val_tostring(result));
 
-	LOG("Getting bin TTLs...");
+	LOG("Getting bins TTL...");
 	result = as_expbin_ttl(&as, &err, NULL, &testKey, "TestBin1", result); 
 	LOG("TestBin 1 TTL: %s", as_val_tostring(result));
 	result = as_expbin_ttl(&as, &err, NULL, &testKey, "TestBin2", result); 
@@ -567,7 +566,7 @@ touch_example(void) {
 
 	as_expbin_touch(&as, &err, NULL, &testKey, (as_list*)&arglist, result);
 
-	LOG("Getting bin TTLs...");
+	LOG("Getting bins TTL...");
 	result = as_expbin_ttl(&as, &err, NULL, &testKey, "TestBin1", result); 
 	LOG("TestBin 1 TTL: %s", as_val_tostring(result));
 	result = as_expbin_ttl(&as, &err, NULL, &testKey, "TestBin2", result); 
