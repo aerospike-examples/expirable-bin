@@ -20,7 +20,7 @@ The scan function provides an off-the-shelf routine to reclaim space. Execute th
 job occasionally to reclaim space, through Aerospike's UDF Scan functionality.
 
 The module provides:  
-**put** - Insert bins with optional time-to-live in seconds, -1 for no expiration. 
+**put** - Insert bins with optional time-to-live in seconds, -1 for no expiration.   
 **get** - Return bins that are not expired.  
 **touch** - Update the bin time-to-live.  
 **ttl** - Return bin time-to-live in seconds.    
