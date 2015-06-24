@@ -47,7 +47,7 @@ This module can be used from client calls or within other UDFs. For examples of 
 calls, see the C and Java examples under ```src/c``` and ```src/java```. Please ensure
 that the expire_bin.lua file is registered to the server before running the examples.
 
-##C 
+###C 
 The C code depends on the Aerospike C library, you can either download the demo package from the Aerospike [website](http://www.aerospike.com/docs/client/c/) or you can go to [GitHub](https://github.com/aerospike/aerospike-client-c) to install and follow the instructions.
 
 To run the C example: 
@@ -56,7 +56,7 @@ make run
 ```
 For simplicity, the Makefile assumes Lua is the default one that is included in ```aerospike.a``` library, if you want to have a different kind of Lua included please go see Aerospike [C Client](https://docs.aerospike.com/display/V3/C+Client+Guide).
 
-##Java
+###Java
 The Java code depends on the Aerospike Java library, you can either download the demo package from the Aerospike [website](http://www.aerospike.com/docs/client/java/) or you can go to [GitHub](https://github.com/aerospike/aerospike-client-java) to install and follow the instructions. 
 
 To run the Java example:
@@ -67,7 +67,7 @@ java -jar target/ExpireBin-1.0-jar-with-dependencies.jar
 The Java example class can also be used as a library. It provides method wrappers for
 the underlying UDF apply calls. 
 
-##UDF
+###UDF
 For usage within UDFs, import the module as follows:
 ```
 local exp_bin = require('expire_bin');
