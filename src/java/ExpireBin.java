@@ -146,7 +146,7 @@ public class ExpireBin {
 	}
 
 	/**
-	 * Perform a scan of the database and clear out expired expire bins.
+	 * Perform a scan of the database and clear out expired bins.
 	 * 
 	 * @param policy    - Configuration parameters for op.
 	 * @param scan      - Scan policy containing which records should be scanned.
@@ -167,7 +167,7 @@ public class ExpireBin {
 	}
 
 	/**
-	 * Get time bin will expire in seconds.
+	 * Get bin TTL in seconds.
 	 * 
 	 * @param policy - Configuration parameters for op.
 	 * @param key    - Record key.

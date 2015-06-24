@@ -255,7 +255,7 @@ as_expbin_touch(aerospike* as, as_error* err, as_policy_apply* policy, as_key* k
 }
 
 /*
- * Get the time bin will expire in seconds.
+ * Get bin TTL in seconds.
  *
  * \param as      - The aerospike instance to use for this operation.
  * \param err     - The as_error to be populated if an error occurs.
