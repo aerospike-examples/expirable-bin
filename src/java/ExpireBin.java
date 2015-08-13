@@ -233,7 +233,6 @@ public class ExpireBin {
 			getExample(policy, testKey, eb);
 			
 			System.out.println("Demo of the expirable bin module for Java successfully completed");
-			
 		} catch (AerospikeException e) {
 			e.printStackTrace();
 			System.exit(1);
