@@ -107,7 +107,7 @@ main(int argc, char* argv[])
 	as_config_add_host(&config, "127.0.0.1", 3000);
 	aerospike_init(&as, &config);
 
-	LOG("\nConnecting to Aerospike server...");
+	LOG("Connecting to Aerospike server...");
 	
 	if (aerospike_connect(&as, &err) != AEROSPIKE_OK) {
 		LOG("error(%d) %s at [%s:%d]", err.code, err.message, err.file, err.line);
@@ -124,9 +124,9 @@ main(int argc, char* argv[])
 	
 	aerospike_key_remove(&as, &err, NULL, &testKey);
 
-	LOG("\nRegistering UDF...");
+	LOG("Registering UDF...");
 
-	if (! register_udf(&as, UDF_FILE_PATH)) {
+	if (!register_udf(&as, UDF_FILE_PATH)) {
 		LOG("Error registering UDF!")
 		cleanup(&as, &err, NULL, &testKey);
 		exit(-1);
@@ -145,6 +145,8 @@ main(int argc, char* argv[])
 
 	aerospike_close(&as, &err);
 	aerospike_destroy(&as);
+
+	LOG("Demo of the expirable bin module for C successfully completed");
 
 	return 0;
 }
@@ -342,7 +344,7 @@ register_udf(aerospike* p_as, const char* udf_file_path)
 {
 	FILE* file = fopen(udf_file_path, "r");
 
-	if (! file) {
+	if (!file) {
 		// If we get here it's likely that we're not running the example from
 		// the right directory - the specific example directory.
 		LOG("cannot open script file %s : %s", udf_file_path, strerror(errno));
@@ -353,7 +355,7 @@ register_udf(aerospike* p_as, const char* udf_file_path)
 
 	uint8_t* content = (uint8_t*)malloc(1024 * 1024);
 
-	if (! content) {
+	if (!content) {
 		LOG("script content allocation failed");
 		return false;
 	}
@@ -416,14 +418,14 @@ cleanup(aerospike* as, as_error* err, as_policy_remove* policy, as_key* testKey)
 static void
 example_dump_bin(const as_bin* p_bin)
 {
-	if (! p_bin) {
-		LOG("  null as_bin object");
+	if (!p_bin) {
+		LOG("Null as_bin object");
 		return;
 	}
 
 	char* val_as_str = as_val_tostring(as_bin_get_value(p_bin));
 
-	LOG("  %s: %s", as_bin_get_name(p_bin), val_as_str);
+	LOG("%s: %s", as_bin_get_name(p_bin), val_as_str);
 
 	free(val_as_str);
 }
@@ -431,8 +433,8 @@ example_dump_bin(const as_bin* p_bin)
 void
 example_dump_record(const as_record* p_rec)
 {
-	if (! p_rec) {
-		LOG("  null as_record object");
+	if (!p_rec) {
+		LOG("Null as_record object");
 		return;
 	}
 
@@ -507,7 +509,7 @@ example_remove_test_records(aerospike* p_as)
 
 void 
 exp_example(void) {
-	LOG("\nInserting expire bins...");
+	LOG("Inserting expire bins...");
 	as_string_init(&val, "Hello World.", false);
 	as_expbin_put(&as, &err, NULL, &testKey, "TestBin1", (as_val*)&val, -1, result);
 	LOG("TestBin 1 inserted");
@@ -552,7 +554,7 @@ exp_example(void) {
 
 void
 touch_example(void) {
-	LOG("\nChanging expiration time for TestBin 1 and TestBin 2...");
+	LOG("Changing expiration time for TestBin 1 and TestBin 2...");
 
 	as_arraylist_inita(&arglist, 2);
 
@@ -587,7 +589,7 @@ touch_example(void) {
 
 void
 get_example(void) {
-	LOG("\nInserting expire bins...");
+	LOG("Inserting expire bins...");
 	as_arraylist_inita(&arglist, 2);
 
 	map1 = create_bin_map("TestBin4", "Good Morning.", 5); 

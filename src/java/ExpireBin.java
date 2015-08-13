@@ -231,6 +231,8 @@ public class ExpireBin {
 			
 			// Example 3: shows the difference between normal 'get' and 'eb.get'.
 			getExample(policy, testKey, eb);
+			
+			System.out.println("Demo of the expirable bin module for Java successfully completed");
 		} catch (AerospikeException e) {
 			e.printStackTrace();
 			System.exit(1);
@@ -329,10 +331,10 @@ public class ExpireBin {
 		record = client.get(policy, testKey, "TestBin1", "TestBin2", "TestBin3", "TestBin4", "TestBin5");
 		
 		if (record != null) {
-			System.out.println(record.toString());
+			System.out.println(record.toString() + "\n");
 		}
 		else {		
-			System.out.println("Record not found");
+			System.out.println("Record not found\n");
 		}
 	}
 }
