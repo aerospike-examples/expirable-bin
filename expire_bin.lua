@@ -74,7 +74,7 @@ local function valid_time(bin_ttl, rec_ttl)
 		GP=F and debug("<%s> bin_ttl is invalid", meth);
 		return false;
 	end
-	if (bin_ttl > rec_ttl) then
+	if (rec_ttl ~= 0 and bin_ttl > rec_ttl) then
 		GP=F and debug("<%s> bin_ttl is invalid", meth);
 		return false;
 	end
